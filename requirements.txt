@@ -1,0 +1,20 @@
+# Wikipedia Podcast Automation - Requirements
+
+# Core dependencies
+requests>=2.31.0
+python-dotenv>=1.0.0
+openai>=1.0.0
+
+# Optional dependencies for enhanced functionality
+# Uncomment if you need these features:
+
+# For advanced audio processing
+# pydub>=0.25.1
+# scipy>=1.11.0
+
+# For testing
+# pytest>=7.4.0
+
+# For development  
+# black>=23.0.0
+# flake8>=6.0.0

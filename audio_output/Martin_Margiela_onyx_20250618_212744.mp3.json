@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "title": "Martin Margiela - Documentary Podcast",
+  "source_article": "Martin Margiela",
+  "style": "documentary",
+  "voice": "onyx",
+  "audio_file": "Martin_Margiela_onyx_20250618_212744.mp3",
+  "audio_path": "../audio_output/Martin_Margiela_onyx_20250618_212744.mp3",
+  "duration": "2:47",
+  "file_size_mb": 3.850250244140625,
+  "estimated_cost": 0.047069999999999994,
+  "created_timestamp": "2025-06-18T21:27:44.257895",
+  "script_word_count": 488,
+  "script_estimated_duration": 195
+}

@@ -1,0 +1,81 @@
+# Wikipedia Podcast Automation - .gitignore
+
+# API Keys and Secrets (NEVER commit these!)
+config/api_keys.env
+config/*.env
+*.env
+api_keys.env
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Generated Audio Files (usually too large for git)
+audio_output/*.mp3
+audio_output/*.wav
+audio_output/*.flac
+audio_output/*.m4a
+
+# Generated Scripts (keep structure, ignore large content)
+processed_scripts/*/*.json
+raw_articles/*/*.json
+
+# Podcast Assets (music files are usually copyrighted)
+podcast_assets/music/*.mp3
+podcast_assets/music/*.wav
+podcast_assets/sfx/*.mp3
+podcast_assets/final/*.mp3
+
+# Temporary Files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Keep directory structure but ignore large contents
+!audio_output/.gitkeep
+!processed_scripts/.gitkeep
+!raw_articles/.gitkeep
+!podcast_assets/.gitkeep
+
+# Example and template files (keep these)
+!config/api_keys.env.example

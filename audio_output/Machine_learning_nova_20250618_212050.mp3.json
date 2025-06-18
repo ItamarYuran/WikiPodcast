@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "title": "Machine learning - Conversational Podcast",
+  "source_article": "Machine learning",
+  "wikipedia_url": "https://en.wikipedia.org/wiki/Machine_learning",
+  "style": "conversational",
+  "voice": "nova",
+  "audio_file": "Machine_learning_nova_20250618_212050.mp3",
+  "audio_path": "../audio_output/Machine_learning_nova_20250618_212050.mp3",
+  "duration": "1:58",
+  "file_size_mb": 2.503509521484375,
+  "estimated_cost": 0.032654999999999997,
+  "created_timestamp": "2025-06-18T21:20:50.794990",
+  "script_word_count": 344,
+  "article_word_count": 8558,
+  "article_quality_score": 1.0,
+  "article_page_views": 15511
+}
