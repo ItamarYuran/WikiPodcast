@@ -32,7 +32,7 @@ class PodcastStyles:
         "conversational": {
             "name": "Conversational",
             "description": "Friendly, casual tone like talking to a friend",
-            "target_duration": 600,  # 10 minutes
+            "target_duration": 900,  # 15 minutes
             "voice_style": "conversational",
             "prompt_template": """
 Create a friendly, conversational podcast script about {topic}. 
@@ -58,14 +58,14 @@ Content Focus:
 - Connect historical events to modern day
 
 Tone: Friendly, curious, accessible, engaging
-Length: Aim for about 10 minutes of speaking time
+Length: Create a comprehensive, detailed script that fully explores the topic
 """
         },
         
         "academic": {
             "name": "Academic/Scholarly",
             "description": "Professional, in-depth analysis with scholarly approach",
-            "target_duration": 900,  # 15 minutes
+            "target_duration": 1200,  # 20 minutes
             "voice_style": "professional",
             "prompt_template": """
 Create a scholarly, academic podcast script about {topic}.
@@ -94,14 +94,14 @@ Content Focus:
 - Connect to broader academic discourse
 
 Tone: Authoritative, analytical, scholarly, balanced
-Length: Aim for about 15 minutes of comprehensive coverage
+Length: Create a comprehensive, detailed academic exploration
 """
         },
         
         "storytelling": {
             "name": "Storytelling/Narrative",
             "description": "Dramatic narrative approach with story arc",
-            "target_duration": 720,  # 12 minutes
+            "target_duration": 1080,  # 18 minutes
             "voice_style": "dramatic",
             "prompt_template": """
 Create a compelling narrative podcast script about {topic} using storytelling techniques.
@@ -130,14 +130,14 @@ Content Focus:
 - Connect events to universal human experiences
 
 Tone: Dramatic, engaging, emotionally resonant, immersive
-Length: Aim for about 12 minutes of narrative storytelling
+Length: Create a detailed narrative that fully develops the story
 """
         },
         
         "news_report": {
             "name": "News Report",
             "description": "Clear, factual reporting style like NPR or BBC",
-            "target_duration": 480,  # 8 minutes
+            "target_duration": 720,  # 12 minutes
             "voice_style": "authoritative",
             "prompt_template": """
 Create a professional news-style podcast script about {topic}.
@@ -166,14 +166,14 @@ Content Focus:
 - Present information clearly and concisely
 
 Tone: Professional, objective, informative, credible
-Length: Aim for about 8 minutes of efficient information delivery
+Length: Create a comprehensive news analysis with full context
 """
         },
         
         "documentary": {
             "name": "Documentary Style",
             "description": "Thoughtful, investigative approach with deep dives",
-            "target_duration": 1200,  # 20 minutes
+            "target_duration": 1500,  # 25 minutes
             "voice_style": "contemplative",
             "prompt_template": """
 Create a documentary-style podcast script about {topic} with investigative depth.
@@ -203,14 +203,14 @@ Content Focus:
 - Connect to contemporary relevance
 
 Tone: Thoughtful, investigative, contemplative, revealing
-Length: Aim for about 20 minutes of in-depth exploration
+Length: Create an in-depth documentary exploration with comprehensive analysis
 """
         },
         
         "comedy": {
             "name": "Comedy/Humorous",
             "description": "Entertaining and funny while still informative",
-            "target_duration": 540,  # 9 minutes
+            "target_duration": 810,  # 13.5 minutes
             "voice_style": "playful",
             "prompt_template": """
 Create a humorous, entertaining podcast script about {topic} that's still informative.
@@ -239,14 +239,14 @@ Content Focus:
 - Include funny "what if" scenarios
 
 Tone: Witty, playful, irreverent but respectful, entertaining
-Length: Aim for about 9 minutes of educational entertainment
+Length: Create an entertaining exploration that educates through humor
 """
         },
         
         "interview": {
             "name": "Interview Format", 
             "description": "Q&A style with imaginary expert or historical figure",
-            "target_duration": 780,  # 13 minutes
+            "target_duration": 1170,  # 19.5 minutes
             "voice_style": "conversational",
             "prompt_template": """
 Create an interview-style podcast script about {topic} with an imaginary expert or the historical figure themselves.
@@ -280,14 +280,14 @@ Format:
 - [Include natural conversation elements like "That's fascinating" or "Tell me more about..."]
 
 Tone: Curious, probing, respectful, insightful
-Length: Aim for about 13 minutes of engaging dialogue
+Length: Create a comprehensive interview with detailed responses
 """
         },
         
         "kids_educational": {
             "name": "Educational Kids",
             "description": "Simple, enthusiastic content for children",
-            "target_duration": 360,  # 6 minutes
+            "target_duration": 540,  # 9 minutes
             "voice_style": "enthusiastic",
             "prompt_template": """
 Create an educational podcast script about {topic} designed for children aged 8-12.
@@ -322,7 +322,7 @@ Safety Notes:
 - Focus on wonder and discovery
 
 Tone: Enthusiastic, encouraging, wonder-filled, age-appropriate
-Length: Aim for about 6 minutes to match attention spans
+Length: Create an engaging educational adventure for young minds
 """
         }
     }
@@ -398,12 +398,7 @@ class PodcastScriptFormatter:
             print(f"Generating {style} script for: {article.title}")
             
             # Prepare the content for processing
-            processed_content, recommended_model = self._prepare_content(article, model)
-            
-            # Use the recommended model if it's different
-            if recommended_model != model:
-                print(f"🔄 Using {recommended_model} instead of {model} for optimal results")
-                model = recommended_model
+            processed_content = self._prepare_content(article)
             
             # Build the prompt
             prompt = self._build_prompt(
@@ -555,12 +550,8 @@ class PodcastScriptFormatter:
     
     # Private helper methods
     
-    def _prepare_content(self, article: WikipediaArticle, model: str = "gpt-4") -> Tuple[str, str]:
-        """Prepare article content for script generation
-        
-        Returns:
-            Tuple of (content, recommended_model)
-        """
+    def _prepare_content(self, article: WikipediaArticle) -> str:
+        """Prepare article content for script generation"""
         # Start with the summary for context
         content_parts = []
         
@@ -574,66 +565,6 @@ class PodcastScriptFormatter:
         main_content = re.sub(r'\n\s*\n\s*\n', '\n\n', main_content)
         main_content = re.sub(r'\s+', ' ', main_content)
         
-        # Estimate token count BEFORE adding metadata (more accurate)
-        words = main_content.split()
-        estimated_content_tokens = len(words) * 1.33
-        
-        print(f"📊 Article analysis: {len(words)} words, ~{estimated_content_tokens:.0f} content tokens")
-        
-        # Determine strategy based on content length
-        recommended_model = model
-        
-        if estimated_content_tokens > 12000:  # Lowered threshold for safety
-            print(f"⚠️  Article is extremely long (~{estimated_content_tokens:.0f} tokens)")
-            print("🎯 Creating condensed version focusing on most important sections")
-            
-            # Intelligent content selection - take key sections
-            sentences = main_content.split('. ')
-            
-            # Take first 30% (introduction and early content)
-            first_section = '. '.join(sentences[:int(len(sentences) * 0.3)])
-            
-            # Take some middle content (skip some middle, take key parts)
-            middle_start = int(len(sentences) * 0.4)
-            middle_end = int(len(sentences) * 0.7)
-            middle_section = '. '.join(sentences[middle_start:middle_end:3])  # Every 3rd sentence
-            
-            # Take last 20% (recent developments, conclusion)
-            last_section = '. '.join(sentences[int(len(sentences) * 0.8):])
-            
-            # Combine sections
-            condensed_content = f"{first_section}.\n\n[... condensed middle sections covering key developments ...]\n\n{middle_section}.\n\n[... recent developments ...]\n\n{last_section}."
-            
-            # Ensure it's within limits - target 6000 words max
-            condensed_words = condensed_content.split()
-            if len(condensed_words) > 6000:
-                condensed_content = ' '.join(condensed_words[:6000])
-                # Try to end at a sentence
-                last_period = condensed_content.rfind('.')
-                if last_period > len(condensed_content) * 0.9:
-                    condensed_content = condensed_content[:last_period + 1]
-                condensed_content += "..."
-            
-            main_content = condensed_content + "\n\n[Note: This is an intelligently condensed version focusing on the most important sections of this extensive article]"
-            recommended_model = "gpt-3.5-turbo"
-            print(f"✅ Condensed to {len(main_content.split())} words")
-            
-        elif model == "gpt-4" and estimated_content_tokens > 6000:
-            print(f"⚠️  Content is long (~{estimated_content_tokens:.0f} tokens), switching to GPT-3.5-turbo for better handling")
-            recommended_model = "gpt-3.5-turbo"
-            
-        elif model == "gpt-3.5-turbo" and estimated_content_tokens > 9000:
-            print(f"⚠️  Content is very long (~{estimated_content_tokens:.0f} tokens), creating focused version")
-            # Smart truncation for 3.5-turbo
-            target_words = 6000
-            if len(words) > target_words:
-                # Take first 70% and last 30%
-                first_part = words[:int(target_words * 0.7)]
-                last_part = words[-int(target_words * 0.3):]
-                
-                main_content = ' '.join(first_part) + "\n\n[... middle sections condensed ...]\n\n" + ' '.join(last_part)
-                main_content += "\n\n[Note: This is a focused version of the full article, emphasizing key information]"
-        
         content_parts.append(f"MAIN CONTENT: {main_content}")
         
         # Add metadata that might be useful
@@ -643,9 +574,7 @@ class PodcastScriptFormatter:
         if article.page_views > 0:
             content_parts.append(f"RECENT POPULARITY: {article.page_views:,} views in past 7 days")
         
-        full_content = '\n\n'.join(content_parts)
-        
-        return full_content, recommended_model
+        return '\n\n'.join(content_parts)
     
     def _build_prompt(self, 
                      article: WikipediaArticle,
@@ -658,69 +587,104 @@ class PodcastScriptFormatter:
         duration = target_duration or style_config['target_duration']
         duration_minutes = duration // 60
         
+        # More efficient prompt building - shorter but still comprehensive
         prompt_parts = [
-            f"You are an expert podcast script writer. Your task is to transform the following Wikipedia article about '{article.title}' into an engaging podcast script.",
+            f"Create a {style_config['name'].lower()} podcast script about '{article.title}'.",
             "",
-            style_config['prompt_template'].format(topic=article.title),
+            f"STYLE: {style_config['description']}",
+            f"TARGET: {duration_minutes}-minute comprehensive podcast script",
             "",
-            f"TARGET DURATION: {duration_minutes} minutes",
-            f"ESTIMATED WORDS NEEDED: {duration // 4} words (assuming 4 words per second)",
+            # Use the core style template but make it more concise
+            style_config['prompt_template'].format(topic=article.title)[:800],  # Limit template length
             "",
-            "ADDITIONAL REQUIREMENTS:",
-            "- Include specific timestamps or segment markers",
-            "- Write in a way that sounds natural when spoken aloud", 
-            "- Include pronunciation guides for difficult names/terms in [brackets]",
-            "- Add natural pause indicators with [...] where appropriate",
-            "- Make sure the content flows smoothly when read as audio",
-            "",
+            "REQUIREMENTS:",
+            f"- Generate a detailed {duration_minutes}-minute script (~{duration_minutes * 175} words)",
+            "- Write for natural spoken delivery",
+            "- Include engaging details and context", 
+            "- Make it comprehensive and informative",
+            "- Use pronunciation guides [like this] for difficult terms",
         ]
         
         if custom_instructions:
             prompt_parts.extend([
-                "CUSTOM INSTRUCTIONS:",
-                custom_instructions,
                 "",
+                f"CUSTOM: {custom_instructions}",
             ])
         
         prompt_parts.extend([
-            "SOURCE MATERIAL:",
-            "================",
+            "",
+            "CONTENT:",
             content,
             "",
-            "Please generate the complete podcast script now:"
+            f"Generate the complete {duration_minutes}-minute {style_config['name'].lower()} podcast script:"
         ])
         
         return '\n'.join(prompt_parts)
     
     def _generate_with_openai(self, prompt: str, model: str = "gpt-4") -> Optional[str]:
-        """Generate script content using OpenAI"""
+        """Generate script content using OpenAI with smart model selection"""
         try:
             from openai import OpenAI
-            
-            # Initialize client with API key
             client = OpenAI(api_key=self.openai_api_key)
+            
+            # Estimate prompt tokens (rough: 1 token ≈ 0.75 words)
+            prompt_words = len(prompt.split())
+            estimated_prompt_tokens = int(prompt_words * 1.33)
+            
+            print(f"📊 Estimated prompt tokens: {estimated_prompt_tokens}")
+            
+            # Smart model selection based on content length
+            if estimated_prompt_tokens > 6000:
+                print("🔄 Content is long, using GPT-3.5-turbo for better capacity")
+                model = "gpt-3.5-turbo"
+                max_response_tokens = 4000
+            elif estimated_prompt_tokens > 4000:
+                print("⚡ Content is medium, using GPT-3.5-turbo for reliability")
+                model = "gpt-3.5-turbo" 
+                max_response_tokens = 3500
+            else:
+                print(f"🤖 Using {model} for high-quality generation")
+                max_response_tokens = 3000
+            
+            # Final safety check - if still too big, truncate
+            if model == "gpt-3.5-turbo" and estimated_prompt_tokens > 12000:
+                print("⚠️  Prompt still too long, truncating...")
+                target_words = 8000
+                words = prompt.split()
+                if len(words) > target_words:
+                    truncated_prompt = ' '.join(words[:target_words])
+                    last_period = truncated_prompt.rfind('.')
+                    if last_period > len(truncated_prompt) * 0.8:
+                        truncated_prompt = truncated_prompt[:last_period + 1]
+                    prompt = truncated_prompt + "\n\n[Content truncated for optimal generation. Please create a comprehensive script.]"
             
             response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are an expert podcast script writer who creates engaging, natural-sounding audio content from written material. Always write scripts that sound great when spoken aloud."
+                        "content": "You are an expert podcast script writer. Create engaging, comprehensive scripts that fully explore the topic. Write naturally for audio, include interesting details, and maintain the target length. Make it informative and entertaining."
                     },
                     {
                         "role": "user",
                         "content": prompt
                     }
                 ],
-                max_tokens=4000,  # Adjust based on target length
-                temperature=0.7,  # Some creativity but not too random
+                max_tokens=max_response_tokens,
+                temperature=0.7,
                 top_p=0.9
             )
             
-            return response.choices[0].message.content.strip()
+            result = response.choices[0].message.content.strip()
+            print(f"✅ Generated {len(result.split())} words with {model}")
+            return result
             
         except Exception as e:
-            print(f"OpenAI API error: {e}")
+            print(f"❌ OpenAI API error: {e}")
+            # Try with GPT-3.5-turbo as fallback if GPT-4 fails
+            if model == "gpt-4":
+                print("🔄 Retrying with GPT-3.5-turbo...")
+                return self._generate_with_openai(prompt, "gpt-3.5-turbo")
             return None
     
     def _parse_generated_script(self, script: str, style: str, title: str) -> Dict[str, any]:

@@ -4,7 +4,7 @@ import re
 import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import time
 import random
 from pathlib import Path
@@ -55,7 +55,11 @@ class WikipediaContentFetcher:
         self.trending_cache = {}
         self.trending_cache_expiry = None
     
-    def fetch_article(self, title: str, include_references: bool = True, force_refresh: bool = False) -> Optional[WikipediaArticle]:
+    def fetch_article(self, 
+                     title: str, 
+                     include_references: bool = True, 
+                     force_refresh: bool = False,
+                     target_length: str = "full") -> Optional[WikipediaArticle]:
         """
         Fetch a specific Wikipedia article by title
         
@@ -63,6 +67,7 @@ class WikipediaContentFetcher:
             title: Wikipedia article title
             include_references: Whether to fetch reference links
             force_refresh: Force re-fetch even if cached
+            target_length: Content length ("short", "medium", "long", "full")
             
         Returns:
             WikipediaArticle object or None if not found
@@ -76,6 +81,11 @@ class WikipediaContentFetcher:
             if not force_refresh:
                 cached_article = self._load_from_file_cache(safe_filename)
                 if cached_article:
+                    # Apply length control to cached content if needed
+                    if target_length != "full":
+                        cached_article.content = self._control_content_length(cached_article.content, target_length)
+                        cached_article.word_count = len(cached_article.content.split())
+                        print(f"📏 Cached content adjusted to '{target_length}' length: {cached_article.word_count} words")
                     return cached_article
             
             # Check memory cache
@@ -95,7 +105,7 @@ class WikipediaContentFetcher:
                 search_results = self.search_articles(title, count=1)
                 if search_results:
                     print(f"Found similar article: {search_results[0].title}")
-                    return search_results[0]  # Return the first search result
+                    return search_results[0]
                 else:
                     print(f"No articles found matching: {title}")
                     return None
@@ -103,6 +113,11 @@ class WikipediaContentFetcher:
             content = self._get_page_content(clean_title)
             if not content:
                 return None
+            
+            # Apply length control if requested
+            if target_length != "full":
+                content = self._control_content_length(content, target_length)
+                print(f"📏 Content adjusted to '{target_length}' length: {len(content.split())} words")
             
             # Get additional metadata
             page_views = self._get_page_views(clean_title)
@@ -371,6 +386,313 @@ class WikipediaContentFetcher:
         except Exception as e:
             print(f"Error fetching 'on this day' articles: {str(e)}")
             return []
+    
+    def suggest_titles(self, partial_title: str, count: int = 5) -> List[str]:
+        """
+        Suggest Wikipedia article titles based on partial input
+        
+        Args:
+            partial_title: Partial or approximate title
+            count: Number of suggestions to return
+            
+        Returns:
+            List of suggested titles
+        """
+        try:
+            response = requests.get(
+                self.api_url,
+                params={
+                    'action': 'opensearch',
+                    'search': partial_title,
+                    'limit': count,
+                    'format': 'json'
+                },
+                headers=self.headers
+            )
+            
+            data = response.json()
+            # OpenSearch returns [query, [titles], [descriptions], [urls]]
+            if len(data) >= 2:
+                return data[1]  # Return the titles list
+            return []
+            
+        except Exception as e:
+            print(f"Error getting suggestions: {e}")
+            return []
+    
+    def find_exact_title(self, approximate_title: str) -> Optional[str]:
+        """
+        Find the exact Wikipedia title for an approximate search
+        
+        Args:
+            approximate_title: The title you're looking for
+            
+        Returns:
+            Exact Wikipedia title if found, None otherwise
+        """
+        # Try common variations
+        variations = [
+            approximate_title,
+            approximate_title.title(),  # Title Case
+            approximate_title.lower(),   # lowercase
+            approximate_title.replace('_', ' '),  # Replace underscores
+            approximate_title.replace(' ', '_'),  # Replace spaces
+        ]
+        
+        for variation in variations:
+            try:
+                clean_title = variation.replace(' ', '_')
+                page_info = self._get_page_info(clean_title)
+                if page_info:
+                    return page_info['title']
+            except:
+                continue
+        
+        return None
+    
+    def list_cached_articles(self) -> List[Dict[str, str]]:
+        """List all cached articles with basic info"""
+        cached_articles = []
+        articles_dir = self.cache_dir / 'articles'
+        
+        for file_path in articles_dir.glob('*.json'):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    cached_articles.append({
+                        'title': data.get('title', 'Unknown'),
+                        'filename': file_path.name,
+                        'word_count': data.get('word_count', 0),
+                        'quality_score': data.get('quality_score', 0.0),
+                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
+                    })
+            except Exception:
+                continue
+        
+        return sorted(cached_articles, key=lambda x: x['cached_date'], reverse=True)
+    
+    def load_cached_article(self, filename: str) -> Optional[WikipediaArticle]:
+        """Load a specific cached article by filename"""
+        return self._load_from_file_cache(filename.replace('.json', ''))
+    
+    def clear_cache(self, older_than_days: int = None):
+        """Clear cached articles, optionally only those older than specified days"""
+        articles_dir = self.cache_dir / 'articles'
+        cutoff_date = datetime.now() - timedelta(days=older_than_days) if older_than_days else None
+        
+        deleted_count = 0
+        for file_path in articles_dir.glob('*.json'):
+            if cutoff_date is None or datetime.fromtimestamp(file_path.stat().st_mtime) < cutoff_date:
+                file_path.unlink()
+                deleted_count += 1
+        
+        print(f"Deleted {deleted_count} cached articles")
+    
+    def get_cache_stats(self) -> Dict[str, int]:
+        """Get statistics about the cache"""
+        articles_dir = self.cache_dir / 'articles'
+        trending_dir = self.cache_dir / 'trending'
+        featured_dir = self.cache_dir / 'featured'
+        
+        return {
+            'total_articles': len(list(articles_dir.glob('*.json'))),
+            'trending_batches': len(list(trending_dir.glob('*.json'))),
+            'featured_batches': len(list(featured_dir.glob('*.json'))),
+            'total_size_mb': sum(f.stat().st_size for f in self.cache_dir.rglob('*.json')) / (1024 * 1024)
+        }
+    
+    def estimate_podcast_duration(self, word_count: int, style: str = "conversational") -> Tuple[int, str]:
+        """
+        Estimate podcast duration based on word count and style
+        
+        Args:
+            word_count: Number of words in content
+            style: Podcast style (affects speaking rate)
+            
+        Returns:
+            Tuple of (duration_seconds, formatted_duration)
+        """
+        
+        # Words per minute by style (approximate)
+        wpm_by_style = {
+            "conversational": 160,
+            "news_report": 180,
+            "academic": 140,
+            "storytelling": 150,
+            "documentary": 145,
+            "comedy": 170,
+            "interview": 155,
+            "kids_educational": 130
+        }
+        
+        wpm = wpm_by_style.get(style, 150)
+        duration_minutes = word_count / wpm
+        duration_seconds = int(duration_minutes * 60)
+        
+        # Format duration
+        minutes = duration_seconds // 60
+        seconds = duration_seconds % 60
+        formatted = f"{minutes}:{seconds:02d}"
+        
+        return duration_seconds, formatted
+    
+    def _control_content_length(self, content: str, target_length: str) -> str:
+        """
+        Control article content length for target podcast duration
+        
+        Args:
+            content: Original article content
+            target_length: Target length ("short", "medium", "long")
+            
+        Returns:
+            Processed content of appropriate length
+        """
+        
+        # Target word counts for different podcast lengths
+        # Based on ~175 words per minute speaking rate
+        length_targets = {
+            "short": 875,      # ~5 minutes
+            "medium": 1750,    # ~10 minutes  
+            "long": 2625,      # ~15 minutes
+            "full": None       # No limit
+        }
+        
+        target_words = length_targets.get(target_length)
+        if not target_words:
+            return content
+        
+        words = content.split()
+        current_word_count = len(words)
+        
+        print(f"📊 Original content: {current_word_count} words")
+        print(f"🎯 Target for '{target_length}': {target_words} words")
+        
+        if current_word_count <= target_words:
+            print(f"✅ Content already within target length")
+            return content
+        
+        # Smart content reduction strategies
+        if target_length == "short":
+            # For short podcasts: focus on introduction and key points
+            processed_content = self._create_short_summary(content, target_words)
+        elif target_length == "medium":
+            # For medium podcasts: keep main sections, reduce details
+            processed_content = self._create_medium_summary(content, target_words)
+        elif target_length == "long":
+            # For long podcasts: comprehensive but condensed
+            processed_content = self._create_long_summary(content, target_words)
+        else:
+            processed_content = content
+        
+        final_word_count = len(processed_content.split())
+        print(f"📏 Final content: {final_word_count} words (~{final_word_count/175:.1f} min)")
+        
+        return processed_content
+    
+    def _create_short_summary(self, content: str, target_words: int) -> str:
+        """Create a short summary focusing on key points"""
+        
+        sentences = content.split('. ')
+        
+        # Take first 30% (introduction) and key sentences
+        intro_sentences = sentences[:int(len(sentences) * 0.3)]
+        
+        # Find sentences with key indicators
+        key_indicators = [
+            'important', 'significant', 'notable', 'famous', 'known for',
+            'discovered', 'invented', 'created', 'founded', 'established',
+            'major', 'primary', 'main', 'key', 'central', 'crucial'
+        ]
+        
+        key_sentences = []
+        for sentence in sentences:
+            if any(indicator in sentence.lower() for indicator in key_indicators):
+                key_sentences.append(sentence)
+        
+        # Combine intro and key sentences
+        combined_sentences = intro_sentences + key_sentences[:10]  # Limit key sentences
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_sentences = []
+        for sentence in combined_sentences:
+            if sentence not in seen:
+                seen.add(sentence)
+                unique_sentences.append(sentence)
+        
+        result = '. '.join(unique_sentences)
+        
+        # Trim to target if still too long
+        words = result.split()
+        if len(words) > target_words:
+            result = ' '.join(words[:target_words])
+            # Try to end at a sentence
+            last_period = result.rfind('.')
+            if last_period > len(result) * 0.8:
+                result = result[:last_period + 1]
+        
+        return result + "\n\n[Content condensed to highlight key points and main facts]"
+    
+    def _create_medium_summary(self, content: str, target_words: int) -> str:
+        """Create a medium-length summary with main sections"""
+        
+        sentences = content.split('. ')
+        total_sentences = len(sentences)
+        
+        # Take sections: intro (25%), middle (50%), conclusion (25%)
+        intro_end = int(total_sentences * 0.25)
+        middle_start = int(total_sentences * 0.25)
+        middle_end = int(total_sentences * 0.75)
+        
+        intro_sentences = sentences[:intro_end]
+        
+        # From middle section, take every other sentence to maintain flow
+        middle_sentences = sentences[middle_start:middle_end:2]
+        
+        conclusion_sentences = sentences[int(total_sentences * 0.75):]
+        
+        combined_sentences = intro_sentences + middle_sentences + conclusion_sentences
+        result = '. '.join(combined_sentences)
+        
+        # Trim to target if needed
+        words = result.split()
+        if len(words) > target_words:
+            result = ' '.join(words[:target_words])
+            last_period = result.rfind('.')
+            if last_period > len(result) * 0.8:
+                result = result[:last_period + 1]
+        
+        return result + "\n\n[Content condensed to include main sections and key developments]"
+    
+    def _create_long_summary(self, content: str, target_words: int) -> str:
+        """Create a comprehensive but condensed version"""
+        
+        sentences = content.split('. ')
+        
+        # For long summaries, take every 3rd sentence to maintain comprehensive coverage
+        # but keep first and last 20% intact
+        total_sentences = len(sentences)
+        
+        intro_end = int(total_sentences * 0.2)
+        conclusion_start = int(total_sentences * 0.8)
+        
+        intro_sentences = sentences[:intro_end]
+        middle_sentences = sentences[intro_end:conclusion_start:3]  # Every 3rd sentence
+        conclusion_sentences = sentences[conclusion_start:]
+        
+        combined_sentences = intro_sentences + middle_sentences + conclusion_sentences
+        result = '. '.join(combined_sentences)
+        
+        # Trim to target if needed
+        words = result.split()
+        if len(words) > target_words:
+            # More aggressive trimming for long content
+            result = ' '.join(words[:target_words])
+            last_period = result.rfind('.')
+            if last_period > len(result) * 0.9:
+                result = result[:last_period + 1]
+        
+        return result + "\n\n[Content condensed while maintaining comprehensive coverage]"
     
     # Private helper methods
     
@@ -642,182 +964,7 @@ class WikipediaContentFetcher:
         # Sort by quality score and views
         filtered.sort(key=lambda x: (x.quality_score, x.page_views), reverse=True)
         
-    def suggest_titles(self, partial_title: str, count: int = 5) -> List[str]:
-        """
-        Suggest Wikipedia article titles based on partial input
-        
-        Args:
-            partial_title: Partial or approximate title
-            count: Number of suggestions to return
-            
-        Returns:
-            List of suggested titles
-        """
-        try:
-            response = requests.get(
-                self.api_url,
-                params={
-                    'action': 'opensearch',
-                    'search': partial_title,
-                    'limit': count,
-                    'format': 'json'
-                },
-                headers=self.headers
-            )
-            
-            data = response.json()
-            # OpenSearch returns [query, [titles], [descriptions], [urls]]
-            if len(data) >= 2:
-                return data[1]  # Return the titles list
-            return []
-            
-        except Exception as e:
-            print(f"Error getting suggestions: {e}")
-            return []
-    
-    def find_exact_title(self, approximate_title: str) -> Optional[str]:
-        """
-        Find the exact Wikipedia title for an approximate search
-        
-        Args:
-            approximate_title: The title you're looking for
-            
-        Returns:
-            Exact Wikipedia title if found, None otherwise
-        """
-        # Try common variations
-        variations = [
-            approximate_title,
-            approximate_title.title(),  # Title Case
-            approximate_title.lower(),   # lowercase
-            approximate_title.replace('_', ' '),  # Replace underscores
-            approximate_title.replace(' ', '_'),  # Replace spaces
-        ]
-        
-        for variation in variations:
-            try:
-                clean_title = variation.replace(' ', '_')
-                page_info = self._get_page_info(clean_title)
-                if page_info:
-                    return page_info['title']
-            except:
-                continue
-        
-        return None
-    
-    def list_cached_articles(self) -> List[Dict[str, str]]:
-        """List all cached articles with basic info"""
-        cached_articles = []
-        articles_dir = self.cache_dir / 'articles'
-        
-        for file_path in articles_dir.glob('*.json'):
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    cached_articles.append({
-                        'title': data.get('title', 'Unknown'),
-                        'filename': file_path.name,
-                        'word_count': data.get('word_count', 0),
-                        'quality_score': data.get('quality_score', 0.0),
-                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
-                    })
-            except Exception:
-                continue
-        
-        return sorted(cached_articles, key=lambda x: x['cached_date'], reverse=True)
-    
-    def load_cached_article(self, filename: str) -> Optional[WikipediaArticle]:
-        """Load a specific cached article by filename"""
-        return self._load_from_file_cache(filename.replace('.json', ''))
-    
-    def clear_cache(self, older_than_days: int = None):
-        """Clear cached articles, optionally only those older than specified days"""
-        articles_dir = self.cache_dir / 'articles'
-        cutoff_date = datetime.now() - timedelta(days=older_than_days) if older_than_days else None
-        
-        deleted_count = 0
-        for file_path in articles_dir.glob('*.json'):
-            if cutoff_date is None or datetime.fromtimestamp(file_path.stat().st_mtime) < cutoff_date:
-                file_path.unlink()
-                deleted_count += 1
-        
-        print(f"Deleted {deleted_count} cached articles")
-    
-    def get_cache_stats(self) -> Dict[str, int]:
-        """Get statistics about the cache"""
-        articles_dir = self.cache_dir / 'articles'
-        trending_dir = self.cache_dir / 'trending'
-        featured_dir = self.cache_dir / 'featured'
-        
-        return {
-            'total_articles': len(list(articles_dir.glob('*.json'))),
-            'trending_batches': len(list(trending_dir.glob('*.json'))),
-            'featured_batches': len(list(featured_dir.glob('*.json'))),
-            'total_size_mb': sum(f.stat().st_size for f in self.cache_dir.rglob('*.json')) / (1024 * 1024)
-        }
-    
-    def suggest_titles(self, partial_title: str, count: int = 5) -> List[str]:
-        """
-        Suggest Wikipedia article titles based on partial input
-        
-        Args:
-            partial_title: Partial or approximate title
-            count: Number of suggestions to return
-            
-        Returns:
-            List of suggested titles
-        """
-        try:
-            response = requests.get(
-                self.api_url,
-                params={
-                    'action': 'opensearch',
-                    'search': partial_title,
-                    'limit': count,
-                    'format': 'json'
-                },
-                headers=self.headers
-            )
-            
-            data = response.json()
-            # OpenSearch returns [query, [titles], [descriptions], [urls]]
-            if len(data) >= 2:
-                return data[1]  # Return the titles list
-            return []
-            
-        except Exception as e:
-            print(f"Error getting suggestions: {e}")
-            return []
-    
-    def find_exact_title(self, approximate_title: str) -> Optional[str]:
-        """
-        Find the exact Wikipedia title for an approximate search
-        
-        Args:
-            approximate_title: The title you're looking for
-            
-        Returns:
-            Exact Wikipedia title if found, None otherwise
-        """
-        # Try common variations
-        variations = [
-            approximate_title,
-            approximate_title.title(),  # Title Case
-            approximate_title.lower(),   # lowercase
-            approximate_title.replace('_', ' '),  # Replace underscores
-            approximate_title.replace(' ', '_'),  # Replace spaces
-        ]
-        
-        for variation in variations:
-            try:
-                clean_title = variation.replace(' ', '_')
-                page_info = self._get_page_info(clean_title)
-                if page_info:
-                    return page_info['title']
-            except:
-                continue
-        
-        return None
+        return filtered[:count]
     
     # Private helper methods for file operations
     
@@ -835,6 +982,7 @@ class WikipediaContentFetcher:
             file_path = self.cache_dir / 'articles' / f"{filename}.json"
             
             # Convert dataclass to dict and add metadata
+            from dataclasses import asdict
             article_data = asdict(article)
             article_data['cached_timestamp'] = datetime.now().isoformat()
             article_data['cache_version'] = '1.0'
@@ -878,6 +1026,7 @@ class WikipediaContentFetcher:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M')
             file_path = self.cache_dir / 'trending' / f"trending_{timestamp}.json"
             
+            from dataclasses import asdict
             batch_data = {
                 'timestamp': datetime.now().isoformat(),
                 'count': len(articles),
@@ -896,6 +1045,7 @@ class WikipediaContentFetcher:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M')
             file_path = self.cache_dir / 'featured' / f"featured_{timestamp}.json"
             
+            from dataclasses import asdict
             batch_data = {
                 'timestamp': datetime.now().isoformat(),
                 'count': len(articles),
@@ -923,9 +1073,9 @@ def example_usage():
     stats = fetcher.get_cache_stats()
     print(f"Cache stats: {stats['total_articles']} articles, {stats['total_size_mb']:.2f} MB")
     
-    # Fetch specific article
+    # Fetch specific article with duration control
     print("\n=== Fetching specific article ===")
-    article = fetcher.fetch_article("Artificial Intelligence")
+    article = fetcher.fetch_article("Artificial Intelligence", target_length="medium")
     if article:
         print(f"Title: {article.title}")
         print(f"Word count: {article.word_count}")
@@ -933,23 +1083,18 @@ def example_usage():
         print(f"Page views (7 days): {article.page_views}")
         print(f"Categories: {', '.join(article.categories[:5])}")
         print(f"Summary: {article.summary[:200]}...")
+        
+        # Show estimated durations
+        for style in ["conversational", "news_report", "academic"]:
+            duration_sec, duration_str = fetcher.estimate_podcast_duration(article.word_count, style)
+            print(f"Estimated {style} duration: {duration_str}")
     
     print("\n=== Getting trending articles ===")
-    trending = fetcher.get_trending_articles(count=5)
+    trending = fetcher.get_trending_articles(count=3)
     for i, article in enumerate(trending, 1):
         print(f"{i}. {article.title} (Views: {article.page_views}, Quality: {article.quality_score:.2f})")
     
-    print("\n=== Getting featured articles ===")
-    featured = fetcher.get_featured_articles(count=3)
-    for i, article in enumerate(featured, 1):
-        print(f"{i}. {article.title} (Quality: {article.quality_score:.2f})")
-    
-    print("\n=== Listing cached articles ===")
-    cached = fetcher.list_cached_articles()
-    for article in cached[:5]:  # Show first 5
-        print(f"- {article['title']} (cached: {article['cached_date']}, {article['word_count']} words)")
-    
-    print(f"\n=== Final cache stats ===")
+    print("\n=== Final cache stats ===")
     final_stats = fetcher.get_cache_stats()
     print(f"Total articles cached: {final_stats['total_articles']}")
     print(f"Cache size: {final_stats['total_size_mb']:.2f} MB")
