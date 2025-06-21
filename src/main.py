@@ -28,12 +28,13 @@ sys.path.append(str(Path(__file__).parent))
 try:
     from content_fetcher import WikipediaContentFetcher, WikipediaArticle
     from script_formatter import PodcastScriptFormatter, PodcastScript
+    from article_editor import ChapterEditor  # Import the article editor (renamed from chapter_editor)
     from openai import OpenAI
     from dotenv import load_dotenv
 except ImportError as e:
     print(f"❌ Import Error: {e}")
     print("Make sure you have: pip install openai python-dotenv requests")
-    print("And that content_fetcher.py and script_formatter.py are in the same directory")
+    print("And that content_fetcher.py, script_formatter.py, and article_editor.py are in the same directory")
     sys.exit(1)
 
 
@@ -53,10 +54,11 @@ class PodcastPipeline:
             self.content_fetcher = WikipediaContentFetcher()
             self.script_formatter = PodcastScriptFormatter()
             
-            # Initialize OpenAI TTS
+            # Initialize OpenAI TTS and Chapter Editor
             self.openai_api_key = os.getenv('OPENAI_API_KEY')
             if self.openai_api_key:
                 self.openai_client = OpenAI(api_key=self.openai_api_key)
+                self.chapter_editor = ChapterEditor(self.openai_api_key)  # Added chapter editor
                 
                 # Set up audio output directory (relative to current working directory)
                 self.audio_dir = Path("audio_output")  # Changed from "../audio_output"
@@ -64,13 +66,16 @@ class PodcastPipeline:
                 
                 print("✅ Content Fetcher initialized")
                 print("✅ Script Formatter initialized")
+                print("✅ Chapter Editor initialized")  # Added status
                 print("✅ OpenAI TTS initialized")
                 print(f"📁 Audio output: {self.audio_dir.absolute()}")
             else:
                 print("✅ Content Fetcher initialized")
                 print("✅ Script Formatter initialized")
+                print("⚠️  Chapter Editor not available (missing OpenAI API key)")  # Added status
                 print("⚠️  OpenAI TTS not available (missing API key)")
                 self.openai_client = None
+                self.chapter_editor = None  # Added chapter editor None
                 self.audio_dir = None
             
             print("✅ Pipeline ready!")
@@ -95,10 +100,163 @@ class PodcastPipeline:
         script_cache = self.script_formatter.list_cached_scripts()
         print(f"📝 Generated Scripts: {len(script_cache)}")
         
+        # Chapter editor status - Added
+        if hasattr(self, 'chapter_editor') and self.chapter_editor:
+            print("✅ Article Editor: Available")
+        else:
+            print("⚠️  Article Editor: Not available (add OpenAI API key)")
+        
         if script_cache:
             print("\nRecent Scripts:")
             for script in script_cache[:5]:
                 print(f"  • {script['title']} ({script['style']}) - {script['duration']}")
+    
+    # Added chapter editing methods
+    def _should_use_chapter_editing(self, article: WikipediaArticle, target_duration: str = "medium") -> bool:
+        """
+        Determine if an article should use chapter-by-chapter editing
+        
+        Args:
+            article: The Wikipedia article
+            target_duration: Target duration setting
+            
+        Returns:
+            True if chapter editing should be used
+        """
+        if not hasattr(self, 'chapter_editor') or not self.chapter_editor:
+            return False
+        
+        # Use chapter editing for very long articles
+        if article.word_count > 6000:
+            print(f"📑 Article has {article.word_count:,} words - using chapter-by-chapter editing")
+            return True
+        
+        # Use chapter editing for full duration articles over 4000 words
+        if target_duration == "full" and article.word_count > 4000:
+            print(f"📑 Full duration + {article.word_count:,} words - using chapter-by-chapter editing")
+            return True
+        
+        return False
+    
+    def _generate_script_with_chapter_editor(self, 
+                                           article: WikipediaArticle, 
+                                           style: str, 
+                                           custom_instructions: str = None) -> Optional[PodcastScript]:
+        """
+        Generate script using chapter-by-chapter editing for long articles
+        
+        Args:
+            article: The Wikipedia article
+            style: Podcast style
+            custom_instructions: Custom editing instructions
+            
+        Returns:
+            Generated PodcastScript or None if failed
+        """
+        if not hasattr(self, 'chapter_editor') or not self.chapter_editor:
+            print("❌ Article editor not available")
+            return None
+        
+        print(f"\n📑 CHAPTER-BY-CHAPTER EDITING")
+        print("=" * 40)
+        print(f"📝 Article: {article.title}")
+        print(f"📊 Length: {article.word_count:,} words")
+        print(f"🎨 Style: {style}")
+        
+        # Prepare editing instructions
+        base_instructions = f"""
+        Convert this Wikipedia article content into a {style} podcast script.
+        
+        Requirements:
+        - Maintain the {style} tone and style throughout
+        - Include smooth transitions between topics
+        - Make content engaging for audio listeners
+        - Preserve important facts, dates, and details
+        - Add natural speech patterns and pauses where appropriate
+        - Structure content logically for audio presentation
+        """
+        
+        if custom_instructions:
+            base_instructions += f"\n\nAdditional Instructions:\n{custom_instructions}"
+        
+        try:
+            # Use chapter editor to process the article
+            edited_content = self.chapter_editor.edit_article_by_chapters(
+                article.content, 
+                base_instructions,
+                delay=2.0  # Slightly longer delay for podcast generation
+            )
+            
+            if not edited_content:
+                print("❌ Chapter editing failed")
+                return None
+            
+            # Create PodcastScript object with proper parameters for your class
+            word_count = len(edited_content.split())
+            estimated_duration = int((word_count / 150) * 60)  # Rough estimate
+            
+            # Try to create script object using standard script formatter method
+            try:
+                # Use the same method as your script formatter for consistency
+                script = self.script_formatter.format_article_to_script(
+                    article, 
+                    style, 
+                    custom_instructions,
+                    override_content=edited_content  # Pass the edited content
+                )
+            except:
+                # Fallback: Create script object manually with required parameters
+                try:
+                    script = PodcastScript(
+                        title=f"{article.title} - {style.title()} Podcast",
+                        script=edited_content,
+                        style=style,
+                        source_article=article.title,
+                        word_count=word_count,
+                        estimated_duration=estimated_duration,
+                        intro="",  # Add required parameters
+                        outro="",
+                        segments=[edited_content],  # Put content in segments
+                        generated_timestamp=datetime.now().isoformat()
+                    )
+                    
+                    # Cache manually since we created it manually
+                    try:
+                        self.script_formatter._cache_script(script)
+                        print(f"💾 Script cached successfully")
+                    except Exception as e:
+                        print(f"⚠️  Script caching failed: {e}")
+                        
+                except Exception as e:
+                    print(f"❌ Error creating script object manually: {e}")
+                    # Create minimal working object
+                    class ChapterScript:
+                        def __init__(self, title, script, style, source_article, word_count, estimated_duration):
+                            self.title = title
+                            self.script = script
+                            self.style = style
+                            self.source_article = source_article
+                            self.word_count = word_count
+                            self.estimated_duration = estimated_duration
+                    
+                    script = ChapterScript(
+                        title=f"{article.title} - {style.title()} Podcast",
+                        script=edited_content,
+                        style=style,
+                        source_article=article.title,
+                        word_count=word_count,
+                        estimated_duration=estimated_duration
+                    )
+            
+            print(f"✅ Chapter-by-chapter editing completed!")
+            print(f"📝 Generated: {word_count:,} words")
+            print(f"⏱️  Estimated duration: {estimated_duration//60}:{estimated_duration%60:02d}")
+            
+            return script
+            
+        except Exception as e:
+            print(f"❌ Chapter editing error: {e}")
+            return None
     
     def fetch_and_generate_trending(self, count: int = 5, style: str = "conversational") -> List[PodcastScript]:
         """Fetch trending articles and generate scripts"""
@@ -157,15 +315,19 @@ class PodcastPipeline:
             print(f"\n[{i}/{len(suitable_articles)}] Processing: {article.title}")
             print(f"   📊 {article.word_count:,} words, Quality: {article.quality_score:.2f}")
             
-            # Apply medium length control for trending articles to avoid token issues
-            if article.word_count > 3000:
-                print("   🎯 Applying medium length control to prevent token limits...")
-                article.content = self.content_fetcher._control_content_length(
-                    article.content, "medium"
-                )
-                article.word_count = len(article.content.split())
-            
-            script = self.script_formatter.format_article_to_script(article, style)
+            # Check if we should use chapter editing - Modified
+            if self._should_use_chapter_editing(article):
+                script = self._generate_script_with_chapter_editor(article, style)
+            else:
+                # Apply medium length control for trending articles to avoid token issues
+                if article.word_count > 3000:
+                    print("   🎯 Applying medium length control to prevent token limits...")
+                    article.content = self.content_fetcher._control_content_length(
+                        article.content, "medium"
+                    )
+                    article.word_count = len(article.content.split())
+                
+                script = self.script_formatter.format_article_to_script(article, style)
             
             if script:
                 scripts.append(script)
@@ -201,6 +363,20 @@ class PodcastPipeline:
         print("=" * 40)
         
         scripts = self.script_formatter.batch_generate_scripts(articles, style)
+        
+        # For featured articles, also check if we should use chapter editing for very long ones - Added
+        enhanced_scripts = []
+        for i, (article, script) in enumerate(zip(articles, scripts), 1):
+            if script:
+                enhanced_scripts.append(script)
+            elif self._should_use_chapter_editing(article):
+                print(f"\n[{i}/{len(articles)}] Retrying with chapter editing: {article.title}")
+                enhanced_script = self._generate_script_with_chapter_editor(article, style)
+                if enhanced_script:
+                    enhanced_scripts.append(enhanced_script)
+                    print(f"   ✅ Generated with chapter editing: {enhanced_script.word_count} words")
+        
+        scripts = enhanced_scripts
         
         print(f"\n✅ Generated {len(scripts)} scripts successfully!")
         return scripts
@@ -267,35 +443,49 @@ class PodcastPipeline:
         print(f"   📊 Estimated podcast duration: {formatted_duration}")
         print(f"       ({duration_seconds//60} min {duration_seconds%60} sec in {style} style)")
         
-        # Generate script
+        # Generate script - Modified to check for chapter editing
         print(f"\n📝 GENERATING {style.upper()} SCRIPT")
         print("=" * 40)
         
-        # Add full-length instruction if target_duration is "full"
-        if target_duration == "full":
-            if custom_instructions:
-                custom_instructions += " Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided."
-            else:
-                custom_instructions = "Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. This should be a full-length, thorough presentation."
-            print(f"🔍 Using full-length instruction for comprehensive coverage")
-        
-        script = self.script_formatter.format_article_to_script(
-            article, 
-            style, 
-            custom_instructions
-        )
+        # Check if we should use chapter editing
+        if self._should_use_chapter_editing(article, target_duration):
+            # Add full-length instruction if target_duration is "full"
+            if target_duration == "full":
+                if custom_instructions:
+                    custom_instructions += " Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided."
+                else:
+                    custom_instructions = "Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. This should be a full-length, thorough presentation."
+                print(f"🔍 Using chapter-by-chapter editing for comprehensive coverage")
+            
+            script = self._generate_script_with_chapter_editor(article, style, custom_instructions)
+        else:
+            # Add full-length instruction if target_duration is "full"
+            if target_duration == "full":
+                if custom_instructions:
+                    custom_instructions += " Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided."
+                else:
+                    custom_instructions = "Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. This should be a full-length, thorough presentation."
+                print(f"🔍 Using full-length instruction for comprehensive coverage")
+            
+            script = self.script_formatter.format_article_to_script(
+                article, 
+                style, 
+                custom_instructions
+            )
         
         if script:
             actual_ratio = (script.word_count / article.word_count) * 100
             print(f"✅ Generated script: {script.word_count} words, ~{script.estimated_duration//60} minutes")
             print(f"📈 Content ratio: {actual_ratio:.1f}% of original article")
             
-            # Warn if the script is much shorter than expected for "full" duration
+            # Warn if the script is much shorter than expected for "full" duration - Modified
             if target_duration == "full" and actual_ratio < 50:
                 print(f"⚠️  WARNING: Script seems shorter than expected for 'full' duration")
                 print(f"   Expected: Close to {article.word_count:,} words")  
                 print(f"   Got: {script.word_count} words ({actual_ratio:.1f}%)")
                 print(f"   This might be due to LLM token limits or script formatter settings")
+                if not hasattr(self, 'chapter_editor') or not self.chapter_editor:
+                    print(f"   💡 Tip: Add OpenAI API key to enable chapter-by-chapter editing for better coverage")
             
             return script
         else:
@@ -355,6 +545,12 @@ class PodcastPipeline:
         print("2. Medium (~10 minutes) - Main content with details")  
         print("3. Long (~15 minutes) - Comprehensive coverage")
         print("4. Full - Complete article content")
+        
+        # Added chapter editing availability hint
+        if hasattr(self, 'chapter_editor') and self.chapter_editor:
+            print("     💡 Article editing available for long articles")
+        else:
+            print("     💡 Add OpenAI API key to enable article editing for better full-length coverage")
         
         try:
             choice = int(input("Select duration (1-4, default 2): ") or "2")
@@ -1343,35 +1539,63 @@ class PodcastPipeline:
             
             # Create a combined script object
             try:
-                from script_formatter import PodcastScript
-                combined_script = PodcastScript(
-                    title=f"{article.title} - Full Script",
-                    script=combined_script_text,
-                    style=style,
-                    source_article=article.title,
-                    word_count=total_words,
-                    estimated_duration=int((total_words / 150) * 60)  # Rough estimate
+                # Try to create script object using standard script formatter method
+                combined_script = self.script_formatter.format_article_to_script(
+                    article, 
+                    style, 
+                    custom_instructions,
+                    override_content=combined_script_text  # Pass the combined content
                 )
-            except Exception as e:
-                print(f"❌ Error creating combined script object: {e}")
-                # Create a simple object if PodcastScript fails
-                class SimpleScript:
-                    def __init__(self, title, script, style, source_article, word_count, estimated_duration):
-                        self.title = title
-                        self.script = script
-                        self.style = style
-                        self.source_article = source_article
-                        self.word_count = word_count
-                        self.estimated_duration = estimated_duration
                 
-                combined_script = SimpleScript(
-                    title=f"{article.title} - Full Script",
-                    script=combined_script_text,
-                    style=style,
-                    source_article=article.title,
-                    word_count=total_words,
-                    estimated_duration=int((total_words / 150) * 60)
-                )
+                if combined_script:
+                    print(f"💾 Combined script created and cached via script formatter")
+                else:
+                    raise Exception("Script formatter returned None")
+                    
+            except Exception as e:
+                print(f"⚠️  Script formatter failed: {e}, trying manual creation...")
+                # Fallback: try manual creation
+                try:
+                    combined_script = PodcastScript(
+                        title=f"{article.title} - Full Script",
+                        script=combined_script_text,
+                        style=style,
+                        source_article=article.title,
+                        word_count=total_words,
+                        estimated_duration=int((total_words / 150) * 60),
+                        intro="",  # Add required parameters
+                        outro="",
+                        segments=[combined_script_text],  # Put content in segments
+                        generated_timestamp=datetime.now().isoformat()
+                    )
+                    
+                    # Try to cache the combined script
+                    try:
+                        self.script_formatter._cache_script(combined_script)
+                        print(f"💾 Combined script cached successfully")
+                    except Exception as e:
+                        print(f"⚠️  Combined script caching failed: {e}")
+                        
+                except Exception as e:
+                    print(f"❌ Error creating combined script object: {e}")
+                    # Create a simple object if PodcastScript fails
+                    class SimpleScript:
+                        def __init__(self, title, script, style, source_article, word_count, estimated_duration):
+                            self.title = title
+                            self.script = script
+                            self.style = style
+                            self.source_article = source_article
+                            self.word_count = word_count
+                            self.estimated_duration = estimated_duration
+                    
+                    combined_script = SimpleScript(
+                        title=f"{article.title} - Full Script",
+                        script=combined_script_text,
+                        style=style,
+                        source_article=article.title,
+                        word_count=total_words,
+                        estimated_duration=int((total_words / 150) * 60)
+                    )
             
             print(f"🔗 Combined {len(chunk_scripts)} chunks into {total_words} word script")
             return combined_script
@@ -1432,15 +1656,23 @@ class PodcastPipeline:
         # Choose target duration
         duration = self._choose_duration()
         
-        # Apply duration control to the article if needed
-        if duration != "full":
+        # Store original word count for chapter editing decision
+        original_word_count = article.word_count
+        
+        # Check if we should use chapter editing BEFORE applying duration control
+        should_use_chapter_editing = self._should_use_chapter_editing(article, duration)
+        
+        # Apply duration control to the article if needed (only if NOT using chapter editing)
+        if duration != "full" and not should_use_chapter_editing:
             print(f"\n🎯 Applying {duration} duration control...")
-            original_word_count = article.word_count
             article.content = self.content_fetcher._control_content_length(article.content, duration)
             article.word_count = len(article.content.split())
             
             if article.word_count != original_word_count:
                 print(f"   📝 Content adjusted: {original_word_count:,} → {article.word_count:,} words")
+        elif should_use_chapter_editing:
+            print(f"\n🎯 Using chapter editing - no pre-processing length reduction")
+            print(f"   📝 Keeping original: {article.word_count:,} words for comprehensive processing")
         else:
             print(f"\n🎯 Using FULL article content - no length reduction")
             print(f"   📝 Keeping original: {article.word_count:,} words")
@@ -1454,44 +1686,60 @@ class PodcastPipeline:
         # Custom instructions
         custom = input("\nCustom instructions (optional): ").strip() or None
         
-        # Add full-length instruction if duration is "full"
-        if duration == "full":
-            if custom:
-                custom += " IMPORTANT: Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. The script should be approximately 80-90% of the original article length. Include all key details, examples, statistics, and explanations. This should be a full-length, thorough presentation that covers the entire article comprehensively."
-            else:
-                custom = "IMPORTANT: Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. The script should be approximately 80-90% of the original article length. Include all key details, examples, statistics, and explanations. This should be a full-length, thorough presentation that covers the entire article comprehensively. Expand on topics rather than condensing them."
-            print(f"🔍 Added full-length instruction to ensure comprehensive coverage")
-        
+        # Generate script using appropriate method
         print(f"\n📝 GENERATING {style.upper()} SCRIPT")
         print("=" * 40)
         print(f"📊 Input article: {article.word_count:,} words")
-        print(f"🎯 Target: {'Full comprehensive script (~2,500+ words)' if duration == 'full' else f'{duration} duration script'}")
         
-        # For full duration, try to force better model usage and longer output
-        if duration == "full":
-            print(f"🚀 Attempting full-length generation...")
+        if should_use_chapter_editing:
+            print(f"🎯 Using chapter-by-chapter editing")
+            # Add duration-specific instructions for chapter editing
+            if duration == "full":
+                if custom:
+                    custom += " IMPORTANT: Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. The script should be approximately 80-90% of the original article length. Include all key details, examples, statistics, and explanations. This should be a full-length, thorough presentation that covers the entire article comprehensively."
+                else:
+                    custom = "IMPORTANT: Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. The script should be approximately 80-90% of the original article length. Include all key details, examples, statistics, and explanations. This should be a full-length, thorough presentation that covers the entire article comprehensively. Expand on topics rather than condensing them."
+            elif duration == "long":
+                if custom:
+                    custom += f" Create a comprehensive {duration} duration script covering the major points from the article. Include detailed explanations and examples. Target approximately {int(original_word_count * 0.6)} words for thorough coverage."
+                else:
+                    custom = f"Create a comprehensive {duration} duration script covering the major points from the article. Include detailed explanations and examples. Target approximately {int(original_word_count * 0.6)} words for thorough coverage. This should be a detailed presentation, not a summary."
             
-            # Try to call script formatter with special full-length parameters
-            script = self._generate_full_length_script(article, style, custom)
+            script = self._generate_script_with_chapter_editor(article, style, custom)
         else:
-            # Generate regular script  
-            script = self.script_formatter.format_article_to_script(
-                article, 
-                style, 
-                custom
-            )
+            print(f"🎯 Using standard script generation")
+            # Add full-length instruction if duration is "full"
+            if duration == "full":
+                if custom:
+                    custom += " IMPORTANT: Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. The script should be approximately 80-90% of the original article length. Include all key details, examples, statistics, and explanations. This should be a full-length, thorough presentation that covers the entire article comprehensively."
+                else:
+                    custom = "IMPORTANT: Please create a comprehensive, detailed script covering ALL major points from the article. Do not summarize or condense - use the complete content provided. The script should be approximately 80-90% of the original article length. Include all key details, examples, statistics, and explanations. This should be a full-length, thorough presentation that covers the entire article comprehensively. Expand on topics rather than condensing them."
+                print(f"🔍 Added full-length instruction to ensure comprehensive coverage")
+            
+            # For non-chapter editing, apply the full length generation if needed
+            if duration == "full":
+                print(f"🚀 Attempting full-length generation...")
+                script = self._generate_full_length_script(article, style, custom)
+            else:
+                # Generate regular script  
+                script = self.script_formatter.format_article_to_script(
+                    article, 
+                    style, 
+                    custom
+                )
         
         if script:
-            actual_ratio = (script.word_count / article.word_count) * 100
+            actual_ratio = (script.word_count / original_word_count) * 100
             print(f"✅ Generated script: {script.word_count} words (~{script.estimated_duration//60} minutes)")
             print(f"📈 Content ratio: {actual_ratio:.1f}% of original article")
             
-            # Warn if the script is much shorter than expected for "full" duration
-            if duration == "full" and actual_ratio < 50:
-                print(f"⚠️  WARNING: Script seems shorter than expected for 'full' duration")
-                print(f"   Expected: Close to {article.word_count:,} words")
+            # Warn if the script is much shorter than expected
+            if (duration == "full" and actual_ratio < 50) or (duration == "long" and actual_ratio < 30):
+                print(f"⚠️  WARNING: Script seems shorter than expected for '{duration}' duration")
+                print(f"   Expected: {int(original_word_count * (0.8 if duration == 'full' else 0.4))}+ words")
                 print(f"   Got: {script.word_count} words ({actual_ratio:.1f}%)")
-                print(f"   This might be due to script formatter limitations")
+                if not should_use_chapter_editing:
+                    print(f"   💡 Tip: Try using chapter editing for better coverage of long articles")
             
             # Ask if they want to generate audio too
             if self.openai_client:
