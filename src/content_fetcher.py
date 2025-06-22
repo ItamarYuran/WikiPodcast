@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import time
 import random
 from pathlib import Path
+import difflib
 
 
 @dataclass
@@ -26,9 +27,19 @@ class WikipediaArticle:
     quality_score: float
 
 
+@dataclass
+class ArticleSuggestion:
+    """Structure for article suggestions"""
+    title: str
+    snippet: str
+    similarity_score: float
+    page_views: int
+    is_disambiguation: bool
+
+
 class WikipediaContentFetcher:
     """
-    Advanced Wikipedia content fetcher with trending discovery capabilities
+    Enhanced Wikipedia content fetcher with smart search and suggestions
     """
     
     def __init__(self, language='en', user_agent='WikipediaPodcastBot/1.0', cache_dir='../raw_articles'):
@@ -40,34 +51,405 @@ class WikipediaContentFetcher:
             'Accept': 'application/json'
         }
         
-        # Set up file caching
+        # Set up file caching - everything goes directly in raw_articles
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
-        
-        # Create subdirectories for organization
-        (self.cache_dir / 'articles').mkdir(exist_ok=True)
-        (self.cache_dir / 'trending').mkdir(exist_ok=True)
-        (self.cache_dir / 'featured').mkdir(exist_ok=True)
-        (self.cache_dir / 'metadata').mkdir(exist_ok=True)
         
         # In-memory cache for current session
         self.memory_cache = {}
         self.trending_cache = {}
         self.trending_cache_expiry = None
     
+    # =================== NEW ENHANCED SEARCH METHODS ===================
+    
+    def smart_fetch_article(self, 
+                           query: str, 
+                           interactive: bool = True,
+                           max_suggestions: int = 10,
+                           include_references: bool = True, 
+                           force_refresh: bool = False,
+                           target_length: str = "full") -> Optional[WikipediaArticle]:
+        """
+        Smart article fetcher that provides suggestions when exact match fails
+        
+        Args:
+            query: Search query/title
+            interactive: Whether to prompt user for selection
+            max_suggestions: Maximum number of suggestions to show
+            include_references: Whether to fetch reference links
+            force_refresh: Force re-fetch even if cached
+            target_length: Content length ("short", "medium", "long", "full")
+            
+        Returns:
+            WikipediaArticle object or None if not found/cancelled
+        """
+        print(f"🔍 Searching for: '{query}'")
+        
+        # First try exact title match variations
+        exact_match = self._try_exact_variations(query)
+        if exact_match:
+            print(f"✅ Found exact match: {exact_match}")
+            # Call fetch_article with interactive=False to avoid recursion
+            return self.fetch_article(exact_match, include_references, force_refresh, target_length, interactive=False)
+        
+        # If no exact match, get suggestions
+        suggestions = self.get_smart_suggestions(query, max_suggestions)
+        
+        if not suggestions:
+            print(f"❌ No articles found for '{query}'")
+            return None
+        
+        # If only one good suggestion, use it automatically
+        if len(suggestions) == 1 and suggestions[0].similarity_score > 0.8:
+            print(f"🎯 Auto-selecting best match: {suggestions[0].title}")
+            return self.fetch_article(suggestions[0].title, include_references, force_refresh, target_length, interactive=False)
+        
+        # Interactive selection
+        if interactive:
+            selected = self._interactive_selection(query, suggestions)
+            if selected:
+                return self.fetch_article(selected, include_references, force_refresh, target_length, interactive=False)
+            else:
+                print("❌ No article selected")
+                return None
+        else:
+            # Non-interactive: return best match
+            best_match = suggestions[0].title
+            print(f"🎯 Auto-selecting best match (non-interactive): {best_match}")
+            return self.fetch_article(best_match, include_references, force_refresh, target_length, interactive=False)
+    
+    def get_smart_suggestions(self, query: str, max_results: int = 10) -> List[ArticleSuggestion]:
+        """
+        Get smart article suggestions using multiple search strategies
+        
+        Args:
+            query: Search query
+            max_results: Maximum number of suggestions
+            
+        Returns:
+            List of ArticleSuggestion objects, sorted by relevance
+        """
+        suggestions = []
+        
+        try:
+            # Strategy 1: OpenSearch API (prefix matching)
+            opensearch_results = self._get_opensearch_suggestions(query, max_results)
+            suggestions.extend(opensearch_results)
+            
+            # Strategy 2: Full-text search
+            search_results = self._get_search_suggestions(query, max_results)
+            suggestions.extend(search_results)
+            
+            # Strategy 3: "Did you mean" style fuzzy matching
+            fuzzy_results = self._get_fuzzy_suggestions(query, max_results // 2)
+            suggestions.extend(fuzzy_results)
+            
+            # Remove duplicates and sort by relevance
+            unique_suggestions = self._deduplicate_suggestions(suggestions)
+            return self._rank_suggestions(query, unique_suggestions, max_results)
+            
+        except Exception as e:
+            print(f"Error getting suggestions: {e}")
+            return []
+    
+    def _try_exact_variations(self, query: str) -> Optional[str]:
+        """Try various exact title variations"""
+        # Helper function to properly capitalize names
+        def title_case_names(text):
+            """Properly capitalize names (each word capitalized)"""
+            return ' '.join(word.capitalize() for word in text.split())
+        
+        variations = [
+            query,                                    # Original: "frank zappa"
+            query.strip(),                           # Trimmed
+            query.title(),                           # Title case: "Frank Zappa"
+            title_case_names(query),                 # Proper name case: "Frank Zappa"
+            query.lower(),                           # Lowercase: "frank zappa"
+            query.upper(),                           # Uppercase: "FRANK ZAPPA"
+            query.capitalize(),                      # First word only: "Frank zappa"
+            query.replace('_', ' '),                 # Underscores to spaces
+            query.replace(' ', '_'),                 # Spaces to underscores
+            query.replace('-', ' '),                 # Hyphens to spaces
+            query.replace(' ', '-'),                 # Spaces to hyphens
+            title_case_names(query).replace(' ', '_'), # "Frank_Zappa"
+            query.title().replace(' ', '_'),         # "Frank_Zappa"
+        ]
+        
+        # Add common disambiguation patterns with proper capitalization
+        if not any(word in query.lower() for word in ['(disambiguation)', '(band)', '(musician)', '(album)']):
+            base_title = title_case_names(query)
+            variations.extend([
+                f"{base_title} (musician)",
+                f"{base_title} (band)",
+                f"{base_title} (composer)",
+                f"{base_title} (artist)",
+                f"{base_title} (album)",
+                f"{base_title} (song)",
+                f"{query} (musician)",
+                f"{query} (band)",
+                f"{query} (composer)",
+                f"{query} (artist)",
+            ])
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_variations = []
+        for var in variations:
+            if var not in seen:
+                seen.add(var)
+                unique_variations.append(var)
+        
+        print(f"🔍 Trying {len(unique_variations)} variations for '{query}':")
+        
+        for i, variation in enumerate(unique_variations, 1):
+            try:
+                print(f"  {i:2d}. Testing: '{variation}'")
+                clean_title = variation.replace(' ', '_')
+                page_info = self._get_page_info(clean_title)
+                if page_info and 'missing' not in page_info:
+                    print(f"  ✅ Found: '{page_info['title']}'")
+                    return page_info['title']
+                else:
+                    print(f"  ❌ Not found")
+            except Exception as e:
+                print(f"  ❌ Error: {e}")
+                continue
+        
+        print(f"  ❌ No exact variations found for '{query}'")
+        return None
+    
+    def _get_opensearch_suggestions(self, query: str, limit: int) -> List[ArticleSuggestion]:
+        """Get suggestions using OpenSearch API"""
+        try:
+            response = requests.get(
+                self.api_url,
+                params={
+                    'action': 'opensearch',
+                    'search': query,
+                    'limit': limit,
+                    'format': 'json',
+                    'redirects': 'resolve'
+                },
+                headers=self.headers,
+                timeout=10
+            )
+            
+            data = response.json()
+            if len(data) < 4:
+                return []
+            
+            titles = data[1]
+            descriptions = data[2]
+            
+            suggestions = []
+            for i, title in enumerate(titles):
+                snippet = descriptions[i] if i < len(descriptions) else ""
+                similarity = self._calculate_similarity(query, title)
+                
+                suggestions.append(ArticleSuggestion(
+                    title=title,
+                    snippet=snippet,
+                    similarity_score=similarity,
+                    page_views=0,  # Will be filled later if needed
+                    is_disambiguation='disambiguation' in title.lower()
+                ))
+            
+            return suggestions
+            
+        except Exception as e:
+            print(f"OpenSearch error: {e}")
+            return []
+    
+    def _get_search_suggestions(self, query: str, limit: int) -> List[ArticleSuggestion]:
+        """Get suggestions using full-text search"""
+        try:
+            response = requests.get(
+                self.api_url,
+                params={
+                    'action': 'query',
+                    'list': 'search',
+                    'srsearch': query,
+                    'srlimit': limit,
+                    'srinfo': 'suggestion',
+                    'srprop': 'snippet|titlesnippet|size',
+                    'format': 'json'
+                },
+                headers=self.headers,
+                timeout=10
+            )
+            
+            data = response.json()
+            search_results = data['query']['search']
+            
+            suggestions = []
+            for result in search_results:
+                title = result['title']
+                snippet = re.sub(r'<.*?>', '', result.get('snippet', ''))  # Remove HTML tags
+                similarity = self._calculate_similarity(query, title)
+                
+                suggestions.append(ArticleSuggestion(
+                    title=title,
+                    snippet=snippet,
+                    similarity_score=similarity,
+                    page_views=0,
+                    is_disambiguation='disambiguation' in title.lower()
+                ))
+            
+            return suggestions
+            
+        except Exception as e:
+            print(f"Search error: {e}")
+            return []
+    
+    def _get_fuzzy_suggestions(self, query: str, limit: int) -> List[ArticleSuggestion]:
+        """Get fuzzy matching suggestions for typos and variations"""
+        suggestions = []
+        
+        # Common music-related terms for context-aware suggestions
+        if any(word in query.lower() for word in ['music', 'band', 'song', 'album', 'guitar', 'rock', 'jazz']):
+            music_variations = [
+                f"{query} band",
+                f"{query} musician",
+                f"{query} composer",
+                f"{query} singer"
+            ]
+            
+            for variation in music_variations:
+                try:
+                    opensearch = self._get_opensearch_suggestions(variation, 2)
+                    suggestions.extend(opensearch)
+                except:
+                    continue
+        
+        return suggestions[:limit]
+    
+    def _calculate_similarity(self, query: str, title: str) -> float:
+        """Calculate similarity score between query and title"""
+        query_lower = query.lower().strip()
+        title_lower = title.lower().strip()
+        
+        # Exact match
+        if query_lower == title_lower:
+            return 1.0
+        
+        # Check if query is contained in title
+        if query_lower in title_lower:
+            return 0.9
+        
+        # Check if title is contained in query
+        if title_lower in query_lower:
+            return 0.8
+        
+        # Use difflib for sequence matching
+        sequence_match = difflib.SequenceMatcher(None, query_lower, title_lower).ratio()
+        
+        # Boost score for common prefixes/suffixes
+        if title_lower.startswith(query_lower) or query_lower.startswith(title_lower):
+            sequence_match += 0.2
+        
+        # Word-based similarity
+        query_words = set(query_lower.split())
+        title_words = set(title_lower.split())
+        
+        if query_words and title_words:
+            word_overlap = len(query_words.intersection(title_words)) / len(query_words.union(title_words))
+            sequence_match = max(sequence_match, word_overlap)
+        
+        return min(sequence_match, 1.0)
+    
+    def _deduplicate_suggestions(self, suggestions: List[ArticleSuggestion]) -> List[ArticleSuggestion]:
+        """Remove duplicate suggestions"""
+        seen_titles = set()
+        unique_suggestions = []
+        
+        for suggestion in suggestions:
+            if suggestion.title not in seen_titles:
+                seen_titles.add(suggestion.title)
+                unique_suggestions.append(suggestion)
+        
+        return unique_suggestions
+    
+    def _rank_suggestions(self, query: str, suggestions: List[ArticleSuggestion], limit: int) -> List[ArticleSuggestion]:
+        """Rank suggestions by relevance"""
+        
+        # Sort by similarity score, but penalize disambiguation pages
+        def ranking_key(suggestion):
+            score = suggestion.similarity_score
+            
+            # Penalize disambiguation pages
+            if suggestion.is_disambiguation:
+                score -= 0.3
+            
+            # Boost exact matches
+            if suggestion.title.lower() == query.lower():
+                score += 0.5
+            
+            # Boost if query appears early in title
+            if query.lower() in suggestion.title.lower()[:len(query) + 5]:
+                score += 0.1
+            
+            return score
+        
+        suggestions.sort(key=ranking_key, reverse=True)
+        return suggestions[:limit]
+    
+    def _interactive_selection(self, query: str, suggestions: List[ArticleSuggestion]) -> Optional[str]:
+        """Interactive suggestion selection"""
+        print(f"\n🔍 Found {len(suggestions)} possible matches for '{query}':")
+        print("=" * 60)
+        
+        for i, suggestion in enumerate(suggestions, 1):
+            similarity_bar = "█" * int(suggestion.similarity_score * 10) + "░" * (10 - int(suggestion.similarity_score * 10))
+            disambiguation_marker = " [DISAMBIGUATION]" if suggestion.is_disambiguation else ""
+            
+            print(f"{i:2}. {suggestion.title}{disambiguation_marker}")
+            print(f"    Match: {similarity_bar} ({suggestion.similarity_score:.2f})")
+            if suggestion.snippet:
+                snippet_clean = suggestion.snippet[:100] + "..." if len(suggestion.snippet) > 100 else suggestion.snippet
+                print(f"    Info: {snippet_clean}")
+            print()
+        
+        print("0. ❌ None of these / Cancel")
+        print("=" * 60)
+        
+        while True:
+            try:
+                choice = input(f"Select article (0-{len(suggestions)}): ").strip()
+                
+                if choice == '0':
+                    return None
+                
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(suggestions):
+                    selected = suggestions[choice_num - 1]
+                    print(f"✅ Selected: {selected.title}")
+                    return selected.title
+                else:
+                    print(f"Please enter a number between 0 and {len(suggestions)}")
+            
+            except ValueError:
+                print("Please enter a valid number")
+            except KeyboardInterrupt:
+                print("\n❌ Cancelled")
+                return None
+    
+    # =================== ALL ORIGINAL METHODS ===================
+    
     def fetch_article(self, 
                      title: str, 
                      include_references: bool = True, 
                      force_refresh: bool = False,
-                     target_length: str = "full") -> Optional[WikipediaArticle]:
+                     target_length: str = "full",
+                     interactive: bool = True) -> Optional[WikipediaArticle]:
         """
-        Fetch a specific Wikipedia article by title
+        Fetch a specific Wikipedia article by title with smart fallback
         
         Args:
             title: Wikipedia article title
             include_references: Whether to fetch reference links
             force_refresh: Force re-fetch even if cached
             target_length: Content length ("short", "medium", "long", "full")
+            interactive: Whether to show suggestions if article fails to fetch
             
         Returns:
             WikipediaArticle object or None if not found
@@ -97,11 +479,72 @@ class WikipediaContentFetcher:
             
             # First try the exact title
             page_info = self._get_page_info(clean_title)
-            content = None
             
-            # If not found, try with search to find the correct title
-            if not page_info:
-                print(f"Exact match not found, searching for: {title}")
+            # If page info found, try to get content
+            if page_info:
+                # Update clean_title to the canonical title from redirect
+                canonical_title = page_info['title']
+                clean_title = canonical_title.replace(' ', '_')
+                safe_filename = self._make_safe_filename(canonical_title)
+                
+                # Try to get the content with the canonical title
+                content = self._get_page_content(clean_title)
+                
+                if content:
+                    # Apply length control if requested
+                    if target_length != "full":
+                        content = self._control_content_length(content, target_length)
+                        print(f"📏 Content adjusted to '{target_length}' length: {len(content.split())} words")
+                    
+                    # Get additional metadata
+                    page_views = self._get_page_views(clean_title)
+                    categories = self._get_categories(clean_title)
+                    references = self._get_references(clean_title) if include_references else []
+                    images = self._get_images(clean_title)
+                    
+                    # Calculate quality score
+                    quality_score = self._calculate_quality_score(content, references, categories)
+                    
+                    article = WikipediaArticle(
+                        title=canonical_title,
+                        url=f"https://{self.language}.wikipedia.org/wiki/{clean_title}",
+                        content=content,
+                        summary=page_info.get('extract', ''),
+                        categories=categories,
+                        page_views=page_views,
+                        last_modified=page_info.get('timestamp', ''),
+                        references=references,
+                        images=images,
+                        word_count=len(content.split()),
+                        quality_score=quality_score
+                    )
+                    
+                    # Cache the result in both memory and file
+                    self.memory_cache[cache_key] = article
+                    self._save_to_file_cache(article, safe_filename)
+                    
+                    print(f"✓ Article cached and saved: {canonical_title}")
+                    print(f"  📊 {article.word_count:,} words, quality: {article.quality_score:.2f}")
+                    print(f"  📁 Saved to: {self.cache_dir}/{safe_filename}.json")
+                    return article
+                else:
+                    print(f"⚠️ Found page info but could not get content for: {canonical_title}")
+            
+            # If we get here, either no page_info or no content - use smart suggestions
+            print(f"💡 Could not fetch '{title}' directly, showing suggestions...")
+            
+            if interactive:
+                # Use smart fetch with suggestions
+                return self.smart_fetch_article(
+                    title, 
+                    interactive=True, 
+                    max_suggestions=10,
+                    include_references=include_references,
+                    force_refresh=force_refresh,
+                    target_length=target_length
+                )
+            else:
+                # Non-interactive fallback - try search
                 search_results = self.search_articles(title, count=1)
                 if search_results:
                     print(f"Found similar article: {search_results[0].title}")
@@ -110,48 +553,24 @@ class WikipediaContentFetcher:
                     print(f"No articles found matching: {title}")
                     return None
             
-            content = self._get_page_content(clean_title)
-            if not content:
-                return None
-            
-            # Apply length control if requested
-            if target_length != "full":
-                content = self._control_content_length(content, target_length)
-                print(f"📏 Content adjusted to '{target_length}' length: {len(content.split())} words")
-            
-            # Get additional metadata
-            page_views = self._get_page_views(clean_title)
-            categories = self._get_categories(clean_title)
-            references = self._get_references(clean_title) if include_references else []
-            images = self._get_images(clean_title)
-            
-            # Calculate quality score
-            quality_score = self._calculate_quality_score(content, references, categories)
-            
-            article = WikipediaArticle(
-                title=page_info['title'],
-                url=f"https://{self.language}.wikipedia.org/wiki/{clean_title}",
-                content=content,
-                summary=page_info.get('extract', ''),
-                categories=categories,
-                page_views=page_views,
-                last_modified=page_info.get('timestamp', ''),
-                references=references,
-                images=images,
-                word_count=len(content.split()),
-                quality_score=quality_score
-            )
-            
-            # Cache the result in both memory and file
-            self.memory_cache[cache_key] = article
-            self._save_to_file_cache(article, safe_filename)
-            
-            print(f"✓ Cached article: {title} ({article.word_count} words, quality: {article.quality_score:.2f})")
-            
-            return article
-            
         except Exception as e:
-            print(f"Error fetching article '{title}': {str(e)}")
+            print(f"❌ Error fetching article '{title}': {str(e)}")
+            
+            # Even if there's an error, try smart suggestions if interactive
+            if interactive:
+                print(f"💡 Trying smart suggestions due to error...")
+                try:
+                    return self.smart_fetch_article(
+                        title, 
+                        interactive=True, 
+                        max_suggestions=10,
+                        include_references=include_references,
+                        force_refresh=force_refresh,
+                        target_length=target_length
+                    )
+                except Exception as smart_error:
+                    print(f"❌ Smart suggestions also failed: {smart_error}")
+            
             return None
     
     def get_trending_articles(self, 
@@ -453,10 +872,13 @@ class WikipediaContentFetcher:
     def list_cached_articles(self) -> List[Dict[str, str]]:
         """List all cached articles with basic info"""
         cached_articles = []
-        articles_dir = self.cache_dir / 'articles'
         
-        for file_path in articles_dir.glob('*.json'):
+        for file_path in self.cache_dir.glob('*.json'):
             try:
+                # Skip special batch files
+                if file_path.name.startswith(('trending_', 'featured_')):
+                    continue
+                    
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     cached_articles.append({
@@ -477,11 +899,10 @@ class WikipediaContentFetcher:
     
     def clear_cache(self, older_than_days: int = None):
         """Clear cached articles, optionally only those older than specified days"""
-        articles_dir = self.cache_dir / 'articles'
         cutoff_date = datetime.now() - timedelta(days=older_than_days) if older_than_days else None
         
         deleted_count = 0
-        for file_path in articles_dir.glob('*.json'):
+        for file_path in self.cache_dir.glob('*.json'):
             if cutoff_date is None or datetime.fromtimestamp(file_path.stat().st_mtime) < cutoff_date:
                 file_path.unlink()
                 deleted_count += 1
@@ -490,15 +911,17 @@ class WikipediaContentFetcher:
     
     def get_cache_stats(self) -> Dict[str, int]:
         """Get statistics about the cache"""
-        articles_dir = self.cache_dir / 'articles'
-        trending_dir = self.cache_dir / 'trending'
-        featured_dir = self.cache_dir / 'featured'
+        article_files = [f for f in self.cache_dir.glob('*.json') if not f.name.startswith(('trending_', 'featured_'))]
+        trending_files = list(self.cache_dir.glob('trending_*.json'))
+        featured_files = list(self.cache_dir.glob('featured_*.json'))
+        
+        total_size = sum(f.stat().st_size for f in self.cache_dir.glob('*.json'))
         
         return {
-            'total_articles': len(list(articles_dir.glob('*.json'))),
-            'trending_batches': len(list(trending_dir.glob('*.json'))),
-            'featured_batches': len(list(featured_dir.glob('*.json'))),
-            'total_size_mb': sum(f.stat().st_size for f in self.cache_dir.rglob('*.json')) / (1024 * 1024)
+            'total_articles': len(article_files),
+            'trending_batches': len(trending_files),
+            'featured_batches': len(featured_files),
+            'total_size_mb': total_size / (1024 * 1024)
         }
     
     def estimate_podcast_duration(self, word_count: int, style: str = "conversational") -> Tuple[int, str]:
@@ -535,6 +958,74 @@ class WikipediaContentFetcher:
         formatted = f"{minutes}:{seconds:02d}"
         
         return duration_seconds, formatted
+    
+    def batch_suggestion_mode(self, queries: List[str]) -> Dict[str, Optional[str]]:
+        """
+        Process multiple queries and return best matches
+        Useful for batch processing without user interaction
+        """
+        results = {}
+        
+        for query in queries:
+            print(f"\n🔍 Processing: {query}")
+            suggestions = self.get_smart_suggestions(query, 5)
+            
+            if suggestions:
+                # Auto-select best match if confidence is high enough
+                best_match = suggestions[0]
+                if best_match.similarity_score > 0.7 and not best_match.is_disambiguation:
+                    results[query] = best_match.title
+                    print(f"✅ Auto-matched: {best_match.title} (score: {best_match.similarity_score:.2f})")
+                else:
+                    results[query] = None
+                    print(f"❓ Low confidence match: {best_match.title} (score: {best_match.similarity_score:.2f})")
+            else:
+                results[query] = None
+                print(f"❌ No matches found")
+        
+        return results
+    
+    def suggest_related_articles(self, title: str, count: int = 5) -> List[str]:
+        """
+        Suggest related articles based on categories and links
+        """
+        try:
+            # Get categories of the source article
+            categories = self._get_categories(title)
+            
+            related_titles = set()
+            
+            # Find articles in same categories
+            for category in categories[:3]:  # Limit to avoid too many requests
+                try:
+                    response = requests.get(
+                        self.api_url,
+                        params={
+                            'action': 'query',
+                            'list': 'categorymembers',
+                            'cmtitle': f'Category:{category}',
+                            'cmlimit': 10,
+                            'format': 'json'
+                        },
+                        headers=self.headers,
+                        timeout=5
+                    )
+                    
+                    data = response.json()
+                    for page in data['query']['categorymembers']:
+                        if page['title'] != title:  # Exclude the source article
+                            related_titles.add(page['title'])
+                    
+                    time.sleep(0.1)  # Rate limiting
+                    
+                except:
+                    continue
+            
+            return list(related_titles)[:count]
+            
+        except Exception as e:
+            print(f"Error finding related articles: {e}")
+            return []
     
     def _control_content_length(self, content: str, target_length: str) -> str:
         """
@@ -697,7 +1188,7 @@ class WikipediaContentFetcher:
     # Private helper methods
     
     def _get_page_info(self, title: str) -> Optional[Dict]:
-        """Get basic page information"""
+        """Get basic page information and handle redirects"""
         try:
             response = requests.get(
                 self.api_url,
@@ -709,21 +1200,45 @@ class WikipediaContentFetcher:
                     'explaintext': True,
                     'exsectionformat': 'plain',
                     'inprop': 'url',
+                    'redirects': True,  # Follow redirects automatically
                     'format': 'json'
                 },
-                headers=self.headers
+                headers=self.headers,
+                timeout=10
             )
             
             data = response.json()
+            
+            # Check if there were redirects
+            if 'redirects' in data['query']:
+                redirects = data['query']['redirects']
+                for redirect in redirects:
+                    if redirect['from'].replace('_', ' ').lower() == title.replace('_', ' ').lower():
+                        print(f"    🔄 Redirect: '{title}' → '{redirect['to']}'")
+                        title = redirect['to']  # Use the redirect target
+            
             pages = data['query']['pages']
             page_id = list(pages.keys())[0]
             
             if page_id == '-1':  # Page not found
                 return None
-                
-            return pages[page_id]
             
-        except Exception:
+            # Check if page has 'missing' flag
+            page_data = pages[page_id]
+            if 'missing' in page_data:
+                return None
+            
+            # Make sure we return the canonical title from the API response
+            if 'title' in page_data:
+                canonical_title = page_data['title']
+                print(f"    📝 Canonical title: '{canonical_title}'")
+                # Update the title in the response to the canonical one
+                page_data['title'] = canonical_title
+                
+            return page_data
+            
+        except Exception as e:
+            print(f"    ⚠️  API error for '{title}': {e}")
             return None
     
     def _get_page_content(self, title: str) -> Optional[str]:
@@ -884,44 +1399,6 @@ class WikipediaContentFetcher:
         except Exception:
             return []
     
-    def _calculate_quality_score(self, content: str, references: List[str], categories: List[str]) -> float:
-        """Calculate a quality score for the article (0-1)"""
-        score = 0.0
-        
-        # Content quality indicators
-        word_count = len(content.split())
-        if word_count > 2000:
-            score += 0.3
-        elif word_count > 1000:
-            score += 0.2
-        elif word_count > 500:
-            score += 0.1
-        
-        # References indicate reliability
-        ref_count = len(references)
-        if ref_count > 10:
-            score += 0.3
-        elif ref_count > 5:
-            score += 0.2
-        elif ref_count > 0:
-            score += 0.1
-        
-        # Categories indicate structure
-        cat_count = len(categories)
-        if cat_count > 5:
-            score += 0.2
-        elif cat_count > 2:
-            score += 0.1
-        
-        # Content structure indicators
-        if '.' in content and len(content.split('.')) > 10:
-            score += 0.1  # Well-structured sentences
-        
-        if any(word in content.lower() for word in ['however', 'therefore', 'furthermore', 'moreover']):
-            score += 0.1  # Analytical writing
-        
-        return min(score, 1.0)
-    
     def _is_suitable_for_podcast(self, article: WikipediaArticle, min_views: int, exclude_categories: List[str]) -> bool:
         """Check if article is suitable for podcast generation"""
         # Check minimum views
@@ -977,9 +1454,11 @@ class WikipediaContentFetcher:
         return safe_title[:100]  # Limit length
     
     def _save_to_file_cache(self, article: WikipediaArticle, filename: str):
-        """Save article to file cache"""
+        """Save article directly to raw_articles directory"""
         try:
-            file_path = self.cache_dir / 'articles' / f"{filename}.json"
+            file_path = self.cache_dir / f"{filename}.json"
+            
+            print(f"💾 Saving article to: {file_path}")
             
             # Convert dataclass to dict and add metadata
             from dataclasses import asdict
@@ -989,14 +1468,23 @@ class WikipediaContentFetcher:
             
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(article_data, f, indent=2, ensure_ascii=False)
+            
+            # Verify the file was saved
+            if file_path.exists():
+                file_size = file_path.stat().st_size
+                print(f"✅ Article saved successfully: {file_size:,} bytes")
+                print(f"📁 Full path: {file_path.absolute()}")
+            else:
+                print(f"❌ File was not created: {file_path}")
                 
         except Exception as e:
-            print(f"Warning: Could not save article to cache: {e}")
-    
+            print(f"❌ Error saving article to cache: {e}")
+            print(f"   Attempted path: {self.cache_dir / f'{filename}.json'}")
+
     def _load_from_file_cache(self, filename: str) -> Optional[WikipediaArticle]:
-        """Load article from file cache"""
+        """Load article directly from raw_articles directory"""
         try:
-            file_path = self.cache_dir / 'articles' / f"{filename}.json"
+            file_path = self.cache_dir / f"{filename}.json"
             
             if not file_path.exists():
                 return None
@@ -1019,12 +1507,95 @@ class WikipediaContentFetcher:
         except Exception as e:
             print(f"Warning: Could not load article from cache: {e}")
             return None
+
+    def _calculate_quality_score(self, content: str, references: List[str], categories: List[str]) -> float:
+        """
+        Calculate a quality score for the article based on various factors
+        
+        Args:
+            content: Article content text
+            references: List of reference URLs
+            categories: List of article categories
+            
+        Returns:
+            Quality score between 0.0 and 1.0
+        """
+        score = 0.0
+        
+        # Content length factor (0.0 - 0.3)
+        word_count = len(content.split())
+        if word_count > 2000:
+            score += 0.3
+        elif word_count > 1000:
+            score += 0.2
+        elif word_count > 500:
+            score += 0.1
+        
+        # References factor (0.0 - 0.25)
+        ref_count = len(references)
+        if ref_count > 20:
+            score += 0.25
+        elif ref_count > 10:
+            score += 0.2
+        elif ref_count > 5:
+            score += 0.15
+        elif ref_count > 0:
+            score += 0.1
+        
+        # Categories factor (0.0 - 0.15)
+        cat_count = len(categories)
+        if cat_count > 10:
+            score += 0.15
+        elif cat_count > 5:
+            score += 0.1
+        elif cat_count > 0:
+            score += 0.05
+        
+        # Content quality indicators (0.0 - 0.2)
+        quality_indicators = [
+            'born', 'died', 'established', 'founded', 'created', 'developed',
+            'published', 'released', 'invented', 'discovered', 'awarded',
+            'graduated', 'studied', 'worked', 'career', 'known for', 'famous'
+        ]
+        
+        content_lower = content.lower()
+        indicator_count = sum(1 for indicator in quality_indicators if indicator in content_lower)
+        
+        if indicator_count > 10:
+            score += 0.2
+        elif indicator_count > 5:
+            score += 0.15
+        elif indicator_count > 2:
+            score += 0.1
+        elif indicator_count > 0:
+            score += 0.05
+        
+        # Structural quality (0.0 - 0.1)
+        # Check for good paragraph structure
+        paragraphs = content.split('\n\n')
+        if len(paragraphs) > 5:
+            score += 0.1
+        elif len(paragraphs) > 2:
+            score += 0.05
+        
+        # Penalty for low-quality indicators
+        low_quality_markers = [
+            'stub', 'disambiguation', 'redirect', 'may refer to',
+            'this article needs', 'citation needed', 'unreliable source'
+        ]
+        
+        for marker in low_quality_markers:
+            if marker in content_lower:
+                score -= 0.1
+        
+        # Ensure score is between 0 and 1
+        return max(0.0, min(1.0, score))
     
     def _save_trending_batch(self, articles: List[WikipediaArticle]):
-        """Save a batch of trending articles"""
+        """Save a batch of trending articles directly to raw_articles"""
         try:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-            file_path = self.cache_dir / 'trending' / f"trending_{timestamp}.json"
+            file_path = self.cache_dir / f"trending_{timestamp}.json"
             
             from dataclasses import asdict
             batch_data = {
@@ -1036,14 +1607,16 @@ class WikipediaContentFetcher:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(batch_data, f, indent=2, ensure_ascii=False)
                 
+            print(f"📦 Trending batch saved: {file_path}")
+                
         except Exception as e:
             print(f"Warning: Could not save trending batch: {e}")
     
     def _save_featured_batch(self, articles: List[WikipediaArticle]):
-        """Save a batch of featured articles"""
+        """Save a batch of featured articles directly to raw_articles"""
         try:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-            file_path = self.cache_dir / 'featured' / f"featured_{timestamp}.json"
+            file_path = self.cache_dir / f"featured_{timestamp}.json"
             
             from dataclasses import asdict
             batch_data = {
@@ -1054,6 +1627,8 @@ class WikipediaContentFetcher:
             
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(batch_data, f, indent=2, ensure_ascii=False)
+                
+            print(f"📦 Featured batch saved: {file_path}")
                 
         except Exception as e:
             print(f"Warning: Could not save featured batch: {e}")
@@ -1061,44 +1636,45 @@ class WikipediaContentFetcher:
 
 # Example usage and testing functions
 def example_usage():
-    """Example of how to use the WikipediaContentFetcher"""
+    """Example of how to use the Enhanced WikipediaContentFetcher"""
     
-    # Initialize fetcher
-    fetcher = WikipediaContentFetcher()
+    # Initialize fetcher - all files go directly to raw_articles
+    fetcher = WikipediaContentFetcher(cache_dir='raw_articles')
     
-    print("=== Wikipedia Podcast Content Fetcher ===")
+    print("=== Enhanced Wikipedia Podcast Content Fetcher ===")
     print(f"Cache directory: {fetcher.cache_dir}")
     
     # Show cache stats
     stats = fetcher.get_cache_stats()
     print(f"Cache stats: {stats['total_articles']} articles, {stats['total_size_mb']:.2f} MB")
     
-    # Fetch specific article with duration control
-    print("\n=== Fetching specific article ===")
-    article = fetcher.fetch_article("Artificial Intelligence", target_length="medium")
-    if article:
-        print(f"Title: {article.title}")
-        print(f"Word count: {article.word_count}")
-        print(f"Quality score: {article.quality_score:.2f}")
-        print(f"Page views (7 days): {article.page_views}")
-        print(f"Categories: {', '.join(article.categories[:5])}")
-        print(f"Summary: {article.summary[:200]}...")
+    # Test smart fetch with challenging queries
+    test_queries = ["frank zappa", "beatles", "einstein", "artificial inteligence"]
+    
+    for query in test_queries:
+        print(f"\n=== Testing Smart Fetch: '{query}' ===")
         
-        # Show estimated durations
-        for style in ["conversational", "news_report", "academic"]:
-            duration_sec, duration_str = fetcher.estimate_podcast_duration(article.word_count, style)
-            print(f"Estimated {style} duration: {duration_str}")
+        # Try smart fetch (interactive=False for demo)
+        article = fetcher.smart_fetch_article(query, interactive=False, target_length="medium")
+        
+        if article:
+            print(f"✅ Success: {article.title}")
+            print(f"📊 Word count: {article.word_count}")
+            print(f"⭐ Quality score: {article.quality_score:.2f}")
+            print(f"👀 Page views (7 days): {article.page_views}")
+            print(f"📂 Categories: {', '.join(article.categories[:3])}")
+            print(f"📝 Summary: {article.summary[:200]}...")
+            
+            # Show estimated durations
+            duration_sec, duration_str = fetcher.estimate_podcast_duration(article.word_count, "conversational")
+            print(f"🎙️ Estimated podcast duration: {duration_str}")
+        else:
+            print(f"❌ Could not find article for '{query}'")
     
-    print("\n=== Getting trending articles ===")
-    trending = fetcher.get_trending_articles(count=3)
-    for i, article in enumerate(trending, 1):
-        print(f"{i}. {article.title} (Views: {article.page_views}, Quality: {article.quality_score:.2f})")
-    
-    print("\n=== Final cache stats ===")
+    print(f"\n=== Final cache stats ===")
     final_stats = fetcher.get_cache_stats()
     print(f"Total articles cached: {final_stats['total_articles']}")
     print(f"Cache size: {final_stats['total_size_mb']:.2f} MB")
-    print(f"Cache location: {fetcher.cache_dir.absolute()}")
 
 
 if __name__ == "__main__":

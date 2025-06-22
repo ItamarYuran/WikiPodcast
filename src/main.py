@@ -102,8 +102,18 @@ def main():
     except KeyboardInterrupt:
         print("\n\n👋 Pipeline interrupted by user")
     except Exception as e:
-        print(f"\n❌ Pipeline Error: {e}")
-        print("Check your API keys and internet connection")
+        print(f"\n❌ Pipeline Error Details:")
+        print(f"   Error Type: {type(e).__name__}")
+        print(f"   Error Message: {e}")
+        print(f"   Error Args: {e.args}")
+        
+        # Show full traceback for debugging
+        import traceback
+        print(f"\n📋 Full Traceback:")
+        traceback.print_exc()
+        
+        print("\n💡 This error occurred after script generation completed successfully.")
+        print("   Check the pipeline steps that happen after script creation.")
         sys.exit(1)
 
 

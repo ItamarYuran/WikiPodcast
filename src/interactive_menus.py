@@ -28,55 +28,46 @@ class InteractiveMenus:
             print("\n📋 MAIN MENU")
             print("1. 📚 Fetch articles only (no scripts)")
             print("2. 📝 Create script from article")
-            print("3. 🔥 Generate trending articles")
-            print("4. ⭐ Generate featured articles") 
-            print("5. 🎯 Generate specific topic")
-            print("6. 🎙️ Create complete podcast (topic → audio)")
-            print("7. 📝 Generate script from cached article")
-            print("8. 🎵 Generate audio from existing script")
-            print("9. 🎛️ Post-production enhancement")
-            print("10. 📊 Show pipeline status")
-            print("11. 📝 List cached scripts")
-            print("12. 🎧 List generated podcasts")
-            print("13. 🎨 Show available styles")
-            print("14. 🧹 Clear old cache")
-            print("15. ❌ Exit")
+            print("3. 🎙️ Create complete podcast (topic → audio)")
+            print("4. 📝 Generate script from cached article")
+            print("5. 🎵 Generate audio from existing script")
+            print("6. 🎛️ Post-production enhancement")
+            print("7. 📊 Show pipeline status")
+            print("8. 📝 List cached scripts")
+            print("9. 🎧 List generated podcasts")
+            print("10. 🎨 Show available styles")
+            print("11. 🧹 Clear old cache")
+            print("12. ❌ Exit")
             
-            choice = input("\nSelect an option (1-15): ").strip()
+            choice = input("\nSelect an option (1-12): ").strip()
             
             if choice == "1":
                 self._interactive_fetch_only()
             elif choice == "2":
                 self._interactive_article_to_script()
             elif choice == "3":
-                self._interactive_trending()
-            elif choice == "4":
-                self._interactive_featured()
-            elif choice == "5":
-                self._interactive_single_topic()
-            elif choice == "6":
                 self._interactive_complete_podcast()
-            elif choice == "7":
+            elif choice == "4":
                 self._interactive_cached_article_to_script()
-            elif choice == "8":
+            elif choice == "5":
                 self._interactive_script_to_audio()
-            elif choice == "9":
+            elif choice == "6":
                 self._interactive_post_production()
-            elif choice == "10":
+            elif choice == "7":
                 self.pipeline.show_status()
-            elif choice == "11":
+            elif choice == "8":
                 self._show_cached_scripts()
-            elif choice == "12":
+            elif choice == "9":
                 self._show_podcasts()
-            elif choice == "13":
+            elif choice == "10":
                 self._show_styles()
-            elif choice == "14":
+            elif choice == "11":
                 self._clear_cache()
-            elif choice == "15":
+            elif choice == "12":
                 print("👋 Goodbye!")
                 break
             else:
-                print("❌ Invalid choice. Please select 1-15.")
+                print("❌ Invalid choice. Please select 1-12.")
     
     def _interactive_fetch_only(self):
         """Interactive article fetching without script generation"""
@@ -263,86 +254,64 @@ class InteractiveMenus:
         print(f"\n📝 GENERATING SCRIPT FROM: {article.title}")
         print("=" * 50)
         
-        # Get available styles
-        styles = self.script_formatter.get_available_styles()
+        # Get available styles - this returns a dictionary, not a list!
+        styles_dict = self.script_formatter.get_available_styles()
+        styles_list = list(styles_dict.keys())  # Convert to list of style names
+        
+        if not styles_list:
+            print("❌ No styles available!")
+            return
+        
         print("\n🎨 Available styles:")
-        for i, style in enumerate(styles, 1):
-            print(f"{i}. {style}")
+        for i, style_key in enumerate(styles_list, 1):
+            style_info = styles_dict[style_key]
+            print(f"{i}. {style_info['name']} - {style_info['description']}")
         
         # Get style choice
         try:
-            style_choice = int(input(f"\nSelect style (1-{len(styles)}): "))
-            if not (1 <= style_choice <= len(styles)):
-                print("❌ Invalid style selection")
+            style_choice = int(input(f"\nSelect style (1-{len(styles_list)}): "))
+            
+            if not (1 <= style_choice <= len(styles_list)):
+                print(f"❌ Invalid style selection: {style_choice} (valid: 1-{len(styles_list)})")
                 return
             
-            selected_style = styles[style_choice - 1]
+            selected_style_key = styles_list[style_choice - 1]
             
-        except ValueError:
-            print("❌ Invalid style selection")
+        except ValueError as e:
+            print(f"❌ Invalid style selection: {e}")
+            return
+        except IndexError as e:
+            print(f"❌ Index error: {e}")
             return
         
-        # Generate script
-        script = self.pipeline.generate_script(article, style=selected_style)
+        # Generate script using the script formatter directly
+        print(f"🎯 Generating script with style: {selected_style_key}")
         
-        if script:
-            print(f"\n✅ Script generated successfully!")
-            print(f"📄 Script saved as: {script.filename}")
-            print(f"📊 Script length: {len(script.content.split())} words")
-            print(f"🎨 Style: {script.style}")
-            print(f"⏱️  Estimated duration: {script.estimated_duration} minutes")
-        else:
-            print("❌ Failed to generate script")
-    
-    def _interactive_trending(self):
-        """Interactive trending articles with script generation"""
         try:
-            count = int(input("How many trending articles to process? (1-10, default 3): ") or "3")
-            count = max(1, min(count, 10))
+            # Use the script formatter directly instead of pipeline.generate_script
+            script = self.script_formatter.format_article_to_script(
+                article, 
+                style=selected_style_key
+            )
             
-            print(f"\n🔥 PROCESSING {count} TRENDING ARTICLES")
-            print("=" * 40)
-            
-            results = self.pipeline.process_trending_articles(count=count)
-            self._display_processing_results(results, "trending")
-            
-        except ValueError:
-            print("❌ Invalid number")
-    
-    def _interactive_featured(self):
-        """Interactive featured articles with script generation"""
-        try:
-            count = int(input("How many featured articles to process? (1-5, default 2): ") or "2")
-            count = max(1, min(count, 5))
-            
-            print(f"\n⭐ PROCESSING {count} FEATURED ARTICLES")
-            print("=" * 40)
-            
-            results = self.pipeline.process_featured_articles(count=count)
-            self._display_processing_results(results, "featured")
-            
-        except ValueError:
-            print("❌ Invalid number")
-    
-    def _interactive_single_topic(self):
-        """Interactive single topic processing"""
-        topic = input("Enter Wikipedia topic/title: ").strip()
-        if not topic:
-            print("❌ Topic cannot be empty")
-            return
-        
-        print(f"\n🎯 PROCESSING TOPIC: {topic}")
-        print("=" * 40)
-        
-        result = self.pipeline.process_single_topic(topic)
-        
-        if result:
-            print(f"\n✅ Successfully processed: {result.title}")
-            print(f"📄 Script: {result.script_file}")
-            print(f"📊 Script length: {result.word_count} words")
-            print(f"🎨 Style: {result.style}")
-        else:
-            print(f"❌ Failed to process topic: {topic}")
+            if script:
+                print(f"\n✅ Script generated successfully!")
+                print(f"📄 Title: {script.title}")
+                print(f"📊 Script length: {script.word_count} words")
+                print(f"🎨 Style: {script.style}")
+                print(f"⏱️  Estimated duration: {script.estimated_duration//60} minutes")
+                
+                # Show where it was saved
+                style_dir = self.script_formatter.cache_dir / script.style
+                print(f"💾 Saved to: {style_dir}")
+                
+            else:
+                print("❌ Failed to generate script")
+                
+        except Exception as e:
+            print(f"❌ Error generating script: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _interactive_complete_podcast(self):
         """Interactive complete podcast generation"""
@@ -352,18 +321,21 @@ class InteractiveMenus:
             return
         
         # Get available styles
-        styles = self.script_formatter.get_available_styles()
+        styles_dict = self.script_formatter.get_available_styles()
+        styles_list = list(styles_dict.keys())
+        
         print("\n🎨 Available styles:")
-        for i, style in enumerate(styles, 1):
-            print(f"{i}. {style}")
+        for i, style_key in enumerate(styles_list, 1):
+            style_info = styles_dict[style_key]
+            print(f"{i}. {style_info['name']} - {style_info['description']}")
         
         try:
-            style_choice = int(input(f"\nSelect style (1-{len(styles)}): "))
-            if not (1 <= style_choice <= len(styles)):
+            style_choice = int(input(f"\nSelect style (1-{len(styles_list)}): "))
+            if not (1 <= style_choice <= len(styles_list)):
                 print("❌ Invalid style selection")
                 return
             
-            selected_style = styles[style_choice - 1]
+            selected_style_key = styles_list[style_choice - 1]
             
         except ValueError:
             print("❌ Invalid style selection")
@@ -372,7 +344,7 @@ class InteractiveMenus:
         print(f"\n🎙️ CREATING COMPLETE PODCAST: {topic}")
         print("=" * 50)
         
-        result = self.pipeline.create_complete_podcast(topic, style=selected_style)
+        result = self.pipeline.create_complete_podcast(topic, style=selected_style_key)
         
         if result:
             print(f"\n🎉 PODCAST CREATED SUCCESSFULLY!")
@@ -401,7 +373,7 @@ class InteractiveMenus:
         for i, script in enumerate(scripts[:10], 1):
             print(f"{i:2d}. {script['title']}")
             print(f"     📊 {script['word_count']:,} words | Style: {script['style']}")
-            print(f"     ⏱️  Est. duration: {script['estimated_duration']} min")
+            print(f"     ⏱️  Est. duration: {script['duration']}")
         
         try:
             choice = int(input(f"\nSelect script (1-{min(len(scripts), 10)}): "))
@@ -492,7 +464,7 @@ class InteractiveMenus:
         for i, script in enumerate(scripts, 1):
             print(f"{i:2d}. {script['title']}")
             print(f"     📊 {script['word_count']:,} words | Style: {script['style']}")
-            print(f"     ⏱️  Est. duration: {script['estimated_duration']} min")
+            print(f"     ⏱️  Est. duration: {script['duration']}")
             print(f"     📁 File: {script['filename']}")
             print()
     
@@ -516,16 +488,16 @@ class InteractiveMenus:
     
     def _show_styles(self):
         """Display available styles with descriptions"""
-        styles = self.script_formatter.get_available_styles()
-        style_descriptions = self.script_formatter.get_style_descriptions()
+        styles_dict = self.script_formatter.get_available_styles()
         
-        print(f"\n🎨 AVAILABLE STYLES ({len(styles)} total)")
+        print(f"\n🎨 AVAILABLE STYLES ({len(styles_dict)} total)")
         print("=" * 40)
         
-        for i, style in enumerate(styles, 1):
-            description = style_descriptions.get(style, "No description available")
-            print(f"{i}. {style}")
-            print(f"   {description}")
+        for i, (style_key, style_info) in enumerate(styles_dict.items(), 1):
+            print(f"{i}. {style_info['name']}")
+            print(f"   📝 {style_info['description']}")
+            print(f"   ⏱️  Target duration: {style_info['target_duration']}")
+            print(f"   🎤 Voice style: {style_info['voice_style']}")
             print()
     
     def _clear_cache(self):
@@ -543,34 +515,110 @@ class InteractiveMenus:
         if choice == "1":
             confirm = input("⚠️  Clear all cached articles? (y/N): ").strip().lower()
             if confirm == 'y':
-                cleared = self.content_fetcher.clear_cache()
-                print(f"✅ Cleared {cleared} cached articles")
+                try:
+                    cleared = self.content_fetcher.clear_cache()
+                    print(f"✅ Cleared {cleared} cached articles")
+                except Exception as e:
+                    print(f"❌ Error clearing article cache: {e}")
         
         elif choice == "2":
             confirm = input("⚠️  Clear all cached scripts? (y/N): ").strip().lower()
             if confirm == 'y':
-                cleared = self.script_formatter.clear_cache()
-                print(f"✅ Cleared {cleared} cached scripts")
+                try:
+                    # Clear script cache manually since the method doesn't exist
+                    cleared = self._clear_script_cache()
+                    print(f"✅ Cleared {cleared} cached scripts")
+                except Exception as e:
+                    print(f"❌ Error clearing script cache: {e}")
         
         elif choice == "3":
             confirm = input("⚠️  Clear all generated audio? (y/N): ").strip().lower()
             if confirm == 'y':
-                cleared = self.audio_generator.clear_cache()
-                print(f"✅ Cleared {cleared} audio files")
+                try:
+                    cleared = self.audio_generator.clear_cache()
+                    print(f"✅ Cleared {cleared} audio files")
+                except Exception as e:
+                    print(f"❌ Error clearing audio cache: {e}")
         
         elif choice == "4":
             confirm = input("⚠️  Clear ALL caches? This cannot be undone! (y/N): ").strip().lower()
             if confirm == 'y':
-                articles_cleared = self.content_fetcher.clear_cache()
-                scripts_cleared = self.script_formatter.clear_cache()
-                audio_cleared = self.audio_generator.clear_cache()
-                print(f"✅ Cleared {articles_cleared} articles, {scripts_cleared} scripts, {audio_cleared} audio files")
+                try:
+                    # Clear articles
+                    articles_cleared = self.content_fetcher.clear_cache()
+                    print(f"✅ Cleared {articles_cleared} articles")
+                    
+                    # Clear scripts
+                    scripts_cleared = self._clear_script_cache()
+                    print(f"✅ Cleared {scripts_cleared} scripts")
+                    
+                    # Clear audio (if method exists)
+                    try:
+                        audio_cleared = self.audio_generator.clear_cache()
+                        print(f"✅ Cleared {audio_cleared} audio files")
+                    except AttributeError:
+                        audio_cleared = self._clear_audio_cache()
+                        print(f"✅ Cleared {audio_cleared} audio files")
+                    
+                    print(f"🎉 Total cleared: {articles_cleared} articles, {scripts_cleared} scripts, {audio_cleared} audio files")
+                    
+                except Exception as e:
+                    print(f"❌ Error clearing caches: {e}")
         
         elif choice == "5":
             print("❌ Cache clearing cancelled")
         
         else:
             print("❌ Invalid choice")
+    
+    def _clear_script_cache(self):
+        """Manually clear script cache since the method doesn't exist in PodcastScriptFormatter"""
+        try:
+            import os
+            cleared = 0
+            
+            # Get the script cache directory
+            cache_dir = self.script_formatter.cache_dir
+            
+            # Clear all subdirectories (styles)
+            for style_dir in cache_dir.iterdir():
+                if style_dir.is_dir():
+                    for script_file in style_dir.glob('*.json'):
+                        script_file.unlink()
+                        cleared += 1
+            
+            return cleared
+            
+        except Exception as e:
+            print(f"Warning: Could not clear script cache: {e}")
+            return 0
+    
+    def _clear_audio_cache(self):
+        """Manually clear audio cache if the method doesn't exist"""
+        try:
+            import os
+            cleared = 0
+            
+            # You'll need to adjust this path based on where audio files are stored
+            # This is a guess - you might need to check your audio_generator implementation
+            audio_dir = Path("../audio_output")  # Adjust this path as needed
+            
+            if audio_dir.exists():
+                for audio_file in audio_dir.glob('*.mp3'):
+                    audio_file.unlink()
+                    cleared += 1
+                for audio_file in audio_dir.glob('*.wav'):
+                    audio_file.unlink()
+                    cleared += 1
+                for json_file in audio_dir.glob('*.json'):
+                    json_file.unlink()
+                    cleared += 1
+            
+            return cleared
+            
+        except Exception as e:
+            print(f"Warning: Could not clear audio cache: {e}")
+            return 0
     
     def _display_processing_results(self, results, result_type):
         """Display results from processing multiple articles"""

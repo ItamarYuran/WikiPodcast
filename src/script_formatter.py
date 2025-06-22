@@ -341,8 +341,24 @@ class PodcastScriptFormatter:
             openai_api_key: OpenAI API key (if None, will load from environment)
             cache_dir: Directory to save generated scripts
         """
-        # Load environment variables
-        load_dotenv('config/api_keys.env')
+        # Load environment variables from multiple possible locations
+        env_paths = [
+            'config/api_keys.env',
+            '../config/api_keys.env', 
+            'src/config/api_keys.env',
+            '.env'
+        ]
+        
+        env_loaded = False
+        for env_path in env_paths:
+            if os.path.exists(env_path):
+                print(f"🔧 Loading environment from: {env_path}")
+                load_dotenv(env_path)
+                env_loaded = True
+                break
+        
+        if not env_loaded:
+            print("⚠️  No .env file found, trying environment variables...")
         
         # Use provided key or get from environment
         if openai_api_key:
@@ -352,10 +368,20 @@ class PodcastScriptFormatter:
             
         if not self.openai_api_key:
             raise ValueError(
-                "OpenAI API key not found. Either:\n"
-                "1. Pass it directly: PodcastScriptFormatter('your-key-here')\n"
-                "2. Set OPENAI_API_KEY in config/api_keys.env file\n"
-                "3. Set OPENAI_API_KEY environment variable"
+                "❌ OpenAI API key not found!\n\n"
+                "Fix this by either:\n"
+                "1. Creating config/api_keys.env with: OPENAI_API_KEY=sk-your-key-here\n"
+                "2. Setting environment variable: export OPENAI_API_KEY=sk-your-key-here\n"
+                "3. Passing key directly: PodcastScriptFormatter('sk-your-key-here')\n\n"
+                "Get your API key from: https://platform.openai.com/api-keys"
+            )
+        
+        # Validate API key format
+        if not self.openai_api_key.startswith('sk-'):
+            raise ValueError(
+                f"❌ Invalid OpenAI API key format!\n"
+                f"Expected: sk-..., Got: {self.openai_api_key[:10]}...\n"
+                f"Check your API key at: https://platform.openai.com/api-keys"
             )
         
         # Set up cache directory
@@ -366,7 +392,7 @@ class PodcastScriptFormatter:
         for style_name in PodcastStyles.STYLES.keys():
             (self.cache_dir / style_name).mkdir(exist_ok=True)
         
-        print(f"✅ OpenAI API key loaded")
+        print(f"✅ OpenAI API key loaded (ends with: ...{self.openai_api_key[-8:]})")
         print(f"✅ Script cache directory: {self.cache_dir.absolute()}")
     
     def format_article_to_script(self, 
@@ -374,7 +400,7 @@ class PodcastScriptFormatter:
                                 style: str = "conversational",
                                 custom_instructions: str = None,
                                 target_duration: int = None,
-                                model: str = "gpt-4") -> Optional[PodcastScript]:
+                                model: str = "gpt-3.5-turbo") -> Optional[PodcastScript]:
         """
         Convert a Wikipedia article into a podcast script
         
@@ -395,7 +421,8 @@ class PodcastScriptFormatter:
         style_config = PodcastStyles.STYLES[style]
         
         try:
-            print(f"Generating {style} script for: {article.title}")
+            print(f"🎯 Generating {style} script for: {article.title}")
+            print(f"📊 Article: {article.word_count:,} words")
             
             # Prepare the content for processing
             processed_content = self._prepare_content(article)
@@ -409,10 +436,13 @@ class PodcastScriptFormatter:
                 target_duration
             )
             
+            print(f"🤖 Using model: {model}")
+            
             # Generate script using OpenAI
             script_content = self._generate_with_openai(prompt, model)
             
             if not script_content:
+                print("❌ Failed to generate script content")
                 return None
             
             # Parse the generated script
@@ -436,12 +466,14 @@ class PodcastScriptFormatter:
             # Save to cache
             self._save_script_to_cache(podcast_script)
             
-            print(f"✓ Generated script: {podcast_script.word_count} words, ~{podcast_script.estimated_duration//60} minutes")
+            print(f"✅ Generated script: {podcast_script.word_count} words, ~{podcast_script.estimated_duration//60}min")
             
             return podcast_script
             
         except Exception as e:
-            print(f"Error generating script for '{article.title}': {str(e)}")
+            print(f"❌ Error generating script for '{article.title}': {str(e)}")
+            import traceback
+            print(f"📋 Full error: {traceback.format_exc()}")
             return None
     
     def batch_generate_scripts(self,
@@ -462,7 +494,7 @@ class PodcastScriptFormatter:
         scripts = []
         
         for i, article in enumerate(articles, 1):
-            print(f"\nProcessing article {i}/{len(articles)}: {article.title}")
+            print(f"\n🔄 Processing article {i}/{len(articles)}: {article.title}")
             
             script = self.format_article_to_script(
                 article, 
@@ -475,11 +507,11 @@ class PodcastScriptFormatter:
             
             # Rate limiting for API calls
             if i < len(articles):  # Don't sleep after the last one
-                print("Waiting 2 seconds for API rate limiting...")
+                print("⏳ Waiting 3 seconds for API rate limiting...")
                 import time
-                time.sleep(2)
+                time.sleep(3)
         
-        print(f"\n✓ Generated {len(scripts)} scripts out of {len(articles)} articles")
+        print(f"\n✅ Generated {len(scripts)} scripts out of {len(articles)} articles")
         return scripts
     
     def get_available_styles(self) -> Dict[str, Dict[str, str]]:
@@ -548,6 +580,49 @@ class PodcastScriptFormatter:
             print(f"Error loading script: {e}")
             return None
     
+    def test_api_connection(self) -> bool:
+        """Test if the OpenAI API connection is working"""
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=self.openai_api_key)
+            
+            print("🧪 Testing OpenAI API connection...")
+            
+            # Simple test request
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "user", "content": "Say 'API test successful' in exactly those words."}
+                ],
+                max_tokens=10,
+                temperature=0
+            )
+            
+            result = response.choices[0].message.content.strip()
+            
+            if "API test successful" in result:
+                print("✅ OpenAI API connection successful!")
+                return True
+            else:
+                print(f"⚠️  API responded but with unexpected content: {result}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ OpenAI API test failed: {str(e)}")
+            
+            # Check for common error types
+            error_str = str(e).lower()
+            if "authentication" in error_str or "api key" in error_str:
+                print("💡 This looks like an API key problem. Check your key at: https://platform.openai.com/api-keys")
+            elif "quota" in error_str or "billing" in error_str:
+                print("💡 This looks like a billing/quota issue. Check your account at: https://platform.openai.com/account/billing")
+            elif "rate limit" in error_str:
+                print("💡 Rate limit hit. Wait a moment and try again.")
+            else:
+                print("💡 Check your internet connection and OpenAI service status.")
+            
+            return False
+    
     # Private helper methods
     
     def _prepare_content(self, article: WikipediaArticle) -> str:
@@ -558,21 +633,28 @@ class PodcastScriptFormatter:
         if article.summary:
             content_parts.append(f"SUMMARY: {article.summary}")
         
-        # Add main content with some cleaning
+        # Add main content but limit length to avoid token limits
         main_content = article.content
         
         # Remove excessive whitespace and clean up formatting
         main_content = re.sub(r'\n\s*\n\s*\n', '\n\n', main_content)
         main_content = re.sub(r'\s+', ' ', main_content)
         
-        content_parts.append(f"MAIN CONTENT: {main_content}")
+        # Limit content length to avoid token limits (roughly 8000 words max)
+        words = main_content.split()
+        if len(words) > 8000:
+            print(f"⚠️  Article is long ({len(words)} words), truncating to 8000 words for processing")
+            main_content = ' '.join(words[:8000])
+            # Try to end at a sentence
+            last_period = main_content.rfind('.')
+            if last_period > len(main_content) * 0.9:
+                main_content = main_content[:last_period + 1]
         
-        # Add metadata that might be useful
+        content_parts.append(f"CONTENT: {main_content}")
+        
+        # Add some metadata that might be useful
         if article.categories:
-            content_parts.append(f"CATEGORIES: {', '.join(article.categories[:10])}")
-        
-        if article.page_views > 0:
-            content_parts.append(f"RECENT POPULARITY: {article.page_views:,} views in past 7 days")
+            content_parts.append(f"CATEGORIES: {', '.join(article.categories[:5])}")
         
         return '\n\n'.join(content_parts)
     
@@ -586,43 +668,53 @@ class PodcastScriptFormatter:
         
         duration = target_duration or style_config['target_duration']
         duration_minutes = duration // 60
+        target_words = duration_minutes * 175  # ~175 words per minute
         
-        # More efficient prompt building - shorter but still comprehensive
+        # More efficient prompt building
         prompt_parts = [
-            f"Create a {style_config['name'].lower()} podcast script about '{article.title}'.",
+            f"Create a {style_config['name'].lower()} podcast script about: {article.title}",
             "",
-            f"STYLE: {style_config['description']}",
-            f"TARGET: {duration_minutes}-minute comprehensive podcast script",
+            f"REQUIREMENTS:",
+            f"- Style: {style_config['description']}",
+            f"- Length: {duration_minutes} minutes (~{target_words} words)",
+            f"- Tone: {style_config.get('voice_style', 'engaging')}",
+            f"- Format: Complete script ready for audio recording",
             "",
-            # Use the core style template but make it more concise
-            style_config['prompt_template'].format(topic=article.title)[:800],  # Limit template length
-            "",
-            "REQUIREMENTS:",
-            f"- Generate a detailed {duration_minutes}-minute script (~{duration_minutes * 175} words)",
-            "- Write for natural spoken delivery",
-            "- Include engaging details and context", 
+            "GUIDELINES:",
+            "- Write for natural speech delivery",
+            "- Include engaging details and examples", 
             "- Make it comprehensive and informative",
-            "- Use pronunciation guides [like this] for difficult terms",
+            "- Use clear pronunciation guides [like this] for difficult terms",
+            "- Create smooth transitions between topics",
         ]
         
         if custom_instructions:
             prompt_parts.extend([
                 "",
-                f"CUSTOM: {custom_instructions}",
+                f"SPECIAL INSTRUCTIONS: {custom_instructions}",
             ])
+        
+        # Add a condensed version of the style template
+        style_guidance = style_config['prompt_template'].format(topic=article.title)
+        # Take key parts of the template
+        style_lines = style_guidance.split('\n')
+        key_style_lines = [line for line in style_lines if line.strip() and not line.startswith('Length:')][:15]
         
         prompt_parts.extend([
             "",
-            "CONTENT:",
+            "STYLE DETAILS:",
+            '\n'.join(key_style_lines[:10]),  # Limit to prevent token overflow
+            "",
+            "SOURCE CONTENT:",
             content,
             "",
-            f"Generate the complete {duration_minutes}-minute {style_config['name'].lower()} podcast script:"
+            f"Generate the complete {duration_minutes}-minute podcast script now:"
         ])
         
         return '\n'.join(prompt_parts)
     
-    def _generate_with_openai(self, prompt: str, model: str = "gpt-4") -> Optional[str]:
-        """Generate script content using OpenAI with smart model selection"""
+    def _generate_with_openai(self, prompt: str, model: str = "gpt-3.5-turbo") -> Optional[str]:
+        """Generate script content using OpenAI with better error handling"""
         try:
             from openai import OpenAI
             client = OpenAI(api_key=self.openai_api_key)
@@ -631,39 +723,36 @@ class PodcastScriptFormatter:
             prompt_words = len(prompt.split())
             estimated_prompt_tokens = int(prompt_words * 1.33)
             
-            print(f"📊 Estimated prompt tokens: {estimated_prompt_tokens}")
+            print(f"📊 Prompt: {prompt_words} words (~{estimated_prompt_tokens} tokens)")
             
-            # Smart model selection based on content length
-            if estimated_prompt_tokens > 6000:
-                print("🔄 Content is long, using GPT-3.5-turbo for better capacity")
-                model = "gpt-3.5-turbo"
-                max_response_tokens = 4000
-            elif estimated_prompt_tokens > 4000:
-                print("⚡ Content is medium, using GPT-3.5-turbo for reliability")
-                model = "gpt-3.5-turbo" 
-                max_response_tokens = 3500
-            else:
-                print(f"🤖 Using {model} for high-quality generation")
-                max_response_tokens = 3000
-            
-            # Final safety check - if still too big, truncate
-            if model == "gpt-3.5-turbo" and estimated_prompt_tokens > 12000:
-                print("⚠️  Prompt still too long, truncating...")
-                target_words = 8000
+            # Adjust model and tokens based on prompt size
+            if estimated_prompt_tokens > 14000:
+                print("⚠️  Prompt is very long, truncating to prevent API errors...")
+                # Aggressively truncate
                 words = prompt.split()
-                if len(words) > target_words:
-                    truncated_prompt = ' '.join(words[:target_words])
-                    last_period = truncated_prompt.rfind('.')
-                    if last_period > len(truncated_prompt) * 0.8:
-                        truncated_prompt = truncated_prompt[:last_period + 1]
-                    prompt = truncated_prompt + "\n\n[Content truncated for optimal generation. Please create a comprehensive script.]"
+                truncated_prompt = ' '.join(words[:10000])
+                prompt = truncated_prompt + "\n\nGenerate the complete podcast script based on the content above."
+                estimated_prompt_tokens = 13000
+            
+            # Set response token limits
+            if model == "gpt-4":
+                max_response_tokens = min(3000, 8192 - estimated_prompt_tokens - 100)
+            else:  # gpt-3.5-turbo
+                max_response_tokens = min(3500, 4096 - estimated_prompt_tokens - 100)
+            
+            if max_response_tokens < 500:
+                print("⚠️  Prompt too long, switching to gpt-3.5-turbo-16k...")
+                model = "gpt-3.5-turbo-16k"
+                max_response_tokens = min(4000, 16384 - estimated_prompt_tokens - 100)
+            
+            print(f"🤖 Model: {model}, Max response tokens: {max_response_tokens}")
             
             response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are an expert podcast script writer. Create engaging, comprehensive scripts that fully explore the topic. Write naturally for audio, include interesting details, and maintain the target length. Make it informative and entertaining."
+                        "content": "You are an expert podcast script writer. Create engaging, comprehensive scripts ready for audio recording. Write naturally for speech, include interesting details, and maintain the target length."
                     },
                     {
                         "role": "user",
@@ -676,15 +765,30 @@ class PodcastScriptFormatter:
             )
             
             result = response.choices[0].message.content.strip()
-            print(f"✅ Generated {len(result.split())} words with {model}")
+            print(f"✅ Generated {len(result.split())} words")
             return result
             
         except Exception as e:
-            print(f"❌ OpenAI API error: {e}")
-            # Try with GPT-3.5-turbo as fallback if GPT-4 fails
-            if model == "gpt-4":
-                print("🔄 Retrying with GPT-3.5-turbo...")
-                return self._generate_with_openai(prompt, "gpt-3.5-turbo")
+            error_str = str(e)
+            print(f"❌ OpenAI API error: {error_str}")
+            
+            # Provide specific error guidance
+            if "authentication" in error_str.lower():
+                print("💡 Check your API key at: https://platform.openai.com/api-keys")
+            elif "quota" in error_str.lower() or "billing" in error_str.lower():
+                print("💡 Check your billing at: https://platform.openai.com/account/billing")
+            elif "rate_limit" in error_str.lower():
+                print("💡 Rate limit hit, trying again in 5 seconds...")
+                import time
+                time.sleep(5)
+                # One retry
+                try:
+                    return self._generate_with_openai(prompt, "gpt-3.5-turbo")
+                except:
+                    pass
+            elif "context_length" in error_str.lower():
+                print("💡 Content too long, try with a shorter article or use chapter editing")
+            
             return None
     
     def _parse_generated_script(self, script: str, style: str, title: str) -> Dict[str, any]:
@@ -774,114 +878,113 @@ class PodcastScriptFormatter:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(script_data, f, indent=2, ensure_ascii=False)
                 
-            print(f"✓ Script saved: {filename}")
+            print(f"💾 Script saved: {filename}")
             
         except Exception as e:
             print(f"Warning: Could not save script to cache: {e}")
 
 
-# Example usage and testing
-def example_usage():
-    """Example of how to use the PodcastScriptFormatter"""
-    
-    print("=== Podcast Script Formatter ===")
+# Diagnostic and testing functions
+def test_setup():
+    """Test the setup and API connection"""
+    print("🧪 TESTING PODCAST SCRIPT FORMATTER SETUP")
+    print("=" * 50)
     
     try:
-        # Initialize formatter (will auto-load API key from environment)
         formatter = PodcastScriptFormatter()
         
-        # Show available styles
-        print("\nAvailable podcast styles:")
-        styles = formatter.get_available_styles()
-        
-        for style_key, info in styles.items():
-            print(f"- {info['name']}: {info['description']}")
-            print(f"  Duration: {info['target_duration']}, Voice: {info['voice_style']}")
-        
-        print(f"\nScript cache directory: {formatter.cache_dir}")
-        
-        # Show any cached scripts
-        cached = formatter.list_cached_scripts()
-        if cached:
-            print(f"\nFound {len(cached)} cached scripts:")
-            for script in cached[:5]:  # Show first 5
-                print(f"- {script['title']} ({script['style']}) - {script['duration']}")
-        
-        # Example of how you'd use it with a real article:
-        print("\nExample usage with real article:")
-        print("""
-        # Fetch an article first
-        from content_fetcher import WikipediaContentFetcher
-        fetcher = WikipediaContentFetcher()
-        article = fetcher.fetch_article("Artificial Intelligence")
-        
-        # Generate different style scripts (API key loaded automatically)
-        formatter = PodcastScriptFormatter()
-        
-        # Conversational style
-        script1 = formatter.format_article_to_script(article, "conversational")
-        
-        # Comedy style  
-        script2 = formatter.format_article_to_script(article, "comedy")
-        
-        # With custom instructions
-        custom = "Focus on the ethical implications and make connections to current events"
-        script3 = formatter.format_article_to_script(article, "documentary", custom)
-        
-        # Batch generate for multiple articles
-        trending = fetcher.get_trending_articles(5)
-        scripts = formatter.batch_generate_scripts(trending, "news_report")
-        """)
-        
-    except ValueError as e:
-        print(f"❌ Setup Error: {e}")
-        print("\nTo fix this:")
-        print("1. Create a file: config/api_keys.env")
-        print("2. Add your OpenAI API key: OPENAI_API_KEY=sk-your-key-here")
-        print("3. Make sure you have python-dotenv installed: pip install python-dotenv")
-        
+        # Test API connection
+        if formatter.test_api_connection():
+            print("✅ Setup complete! Ready to generate scripts.")
+            return True
+        else:
+            print("❌ Setup failed - API connection issues")
+            return False
+            
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Setup error: {e}")
+        return False
 
 
-def create_env_file_template():
-    """Helper function to create the API keys environment file template"""
-    config_dir = Path("config")
-    config_dir.mkdir(exist_ok=True)
-    
-    env_file = config_dir / "api_keys.env"
-    
-    if not env_file.exists():
-        template_content = """# API Keys for Wikipedia Podcast Automation
-# Replace 'your-key-here' with your actual API keys
-
-# OpenAI API Key (required for script generation)
-# Get from: https://platform.openai.com/api-keys
-OPENAI_API_KEY=your-openai-key-here
-
-# ElevenLabs API Key (for future TTS integration)
-# Get from: https://elevenlabs.io/
-ELEVENLABS_API_KEY=your-elevenlabs-key-here
-
-# Other future integrations
-BUZZSPROUT_API_KEY=your-buzzsprout-key-here
-"""
+def create_example_script():
+    """Create an example script to test the system"""
+    try:
+        # Create a minimal test article
+        from content_fetcher import WikipediaArticle
         
-        with open(env_file, 'w') as f:
-            f.write(template_content)
+        test_article = WikipediaArticle(
+            title="Test Article",
+            url="https://example.com",
+            content="This is a test article about artificial intelligence. AI is a fascinating field that involves creating machines that can think and learn. It has many applications in modern technology, from smartphones to autonomous vehicles. The field continues to evolve rapidly with new breakthroughs happening regularly.",
+            summary="A test article about AI",
+            categories=["Technology", "Computer Science"],
+            page_views=1000,
+            last_modified="2024-01-01",
+            references=["https://example.com/ref1"],
+            images=["test.jpg"],
+            word_count=50,
+            quality_score=0.8
+        )
         
-        print(f"✓ Created template: {env_file.absolute()}")
-        print("Please edit this file and add your actual API keys!")
-        return env_file
-    else:
-        print(f"✓ Config file already exists: {env_file.absolute()}")
-        return env_file
+        formatter = PodcastScriptFormatter()
+        
+        print("🧪 Generating test script...")
+        script = formatter.format_article_to_script(test_article, "conversational")
+        
+        if script:
+            print("✅ Test script generated successfully!")
+            print(f"📝 Title: {script.title}")
+            print(f"📊 Words: {script.word_count}")
+            print(f"⏱️  Duration: ~{script.estimated_duration//60} minutes")
+            return True
+        else:
+            print("❌ Test script generation failed")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
+        return False
 
 
 if __name__ == "__main__":
-    # Create environment file template if it doesn't exist
-    create_env_file_template()
-    print()
+    print("🎙️ PODCAST SCRIPT FORMATTER")
+    print("=" * 30)
     
-    # Run example usage
-    example_usage()
+    if test_setup():
+        print("\n" + "="*50)
+        print("Ready to use! Example usage:")
+        print("""
+from script_formatter import PodcastScriptFormatter
+from content_fetcher import WikipediaContentFetcher
+
+# Setup
+fetcher = WikipediaContentFetcher()
+formatter = PodcastScriptFormatter()
+
+# Get an article
+article = fetcher.fetch_article("Artificial Intelligence")
+
+# Generate script
+script = formatter.format_article_to_script(article, "conversational")
+
+print(f"Generated: {script.title}")
+print(f"Duration: {script.estimated_duration//60} minutes")
+""")
+        
+        # Optionally run the test
+        test_choice = input("\nRun a test script generation? (y/n): ").lower()
+        if test_choice == 'y':
+            create_example_script()
+    else:
+        print("""
+❌ Setup incomplete! To fix:
+
+1. Create config/api_keys.env with:
+   OPENAI_API_KEY=sk-your-key-here
+
+2. Get your API key from:
+   https://platform.openai.com/api-keys
+
+3. Install required packages:
+   pip install openai python-dotenv
+""")
