@@ -1,11 +1,12 @@
 """
-Interactive Menu System
+Interactive Menu System - Fixed
 This module handles all user interaction:
 - Main menu navigation
 - User input and choice handling
 - Interactive workflows
 """
 import sys
+from pathlib import Path
 from typing import Optional
 
 class InteractiveMenus:
@@ -112,8 +113,9 @@ class InteractiveMenus:
                 print(f"     👀 {article.page_views:,} recent views")
                 
                 # Show chapter editing eligibility
-                if self.content_processor._should_use_chapter_editing(article):
-                    print(f"     📑 Eligible for chapter-by-chapter editing")
+                if hasattr(self.content_processor, '_should_use_chapter_editing'):
+                    if self.content_processor._should_use_chapter_editing(article):
+                        print(f"     📑 Eligible for chapter-by-chapter editing")
                 print()
             
             print("💡 Articles are cached and ready for script generation!")
@@ -145,8 +147,9 @@ class InteractiveMenus:
                 print(f"     👀 {article.page_views:,} recent views")
                 
                 # Show chapter editing eligibility
-                if self.content_processor._should_use_chapter_editing(article):
-                    print(f"     📑 Eligible for chapter-by-chapter editing")
+                if hasattr(self.content_processor, '_should_use_chapter_editing'):
+                    if self.content_processor._should_use_chapter_editing(article):
+                        print(f"     📑 Eligible for chapter-by-chapter editing")
                 print()
             
             print("💡 Articles are cached and ready for script generation!")
@@ -177,8 +180,9 @@ class InteractiveMenus:
         print(f"👀 Recent views: {article.page_views:,}")
         
         # Show chapter editing eligibility
-        if self.content_processor._should_use_chapter_editing(article):
-            print(f"📑 This article is eligible for chapter-by-chapter editing")
+        if hasattr(self.content_processor, '_should_use_chapter_editing'):
+            if self.content_processor._should_use_chapter_editing(article):
+                print(f"📑 This article is eligible for chapter-by-chapter editing")
         
         print("\n💡 Article is cached and ready for script generation!")
     
@@ -254,6 +258,47 @@ class InteractiveMenus:
         print(f"\n📝 GENERATING SCRIPT FROM: {article.title}")
         print("=" * 50)
         
+        # Duration Selection
+        print("\n⏱️  PODCAST DURATION")
+        print("=" * 25)
+        print("1. 🚀 5 minutes (quick)")
+        print("2. 📱 10 minutes (standard)")  
+        print("3. 📺 15 minutes (detailed)")
+        print("4. 📚 20 minutes (comprehensive)")
+        print("5. 🎓 25 minutes (deep dive)")
+        print("6. ⚙️  Custom duration")
+        
+        # Get duration choice
+        duration_choice = input("\nSelect duration (1-6, default 2): ").strip() or "2"
+        
+        duration_map = {
+            '1': 300,   # 5 minutes
+            '2': 600,   # 10 minutes  
+            '3': 900,   # 15 minutes
+            '4': 1200,  # 20 minutes
+            '5': 1500,  # 25 minutes
+        }
+        
+        if duration_choice in duration_map:
+            target_duration = duration_map[duration_choice]
+            minutes = target_duration // 60
+            print(f"✅ Selected: {minutes} minutes")
+        elif duration_choice == '6':
+            try:
+                custom_minutes = int(input("Enter duration in minutes (5-30): "))
+                if 5 <= custom_minutes <= 30:
+                    target_duration = custom_minutes * 60
+                    print(f"✅ Custom duration: {custom_minutes} minutes")
+                else:
+                    print("⚠️  Invalid range, using 10 minutes")
+                    target_duration = 600
+            except ValueError:
+                print("⚠️  Invalid input, using 10 minutes")
+                target_duration = 600
+        else:
+            print("⚠️  Invalid choice, using 10 minutes")
+            target_duration = 600
+        
         # Get available styles - this returns a dictionary, not a list!
         styles_dict = self.script_formatter.get_available_styles()
         styles_list = list(styles_dict.keys())  # Convert to list of style names
@@ -284,26 +329,55 @@ class InteractiveMenus:
             print(f"❌ Index error: {e}")
             return
         
+        # ADD MODEL SELECTION HERE
+        print("\n🤖 AI MODEL SELECTION")
+        print("=" * 25)
+        print("1. 🚀 GPT-3.5 Turbo (faster, cheaper)")
+        print("2. 🧠 GPT-4 (slower, more expensive, better at following length requirements)")
+        
+        model_choice = input("\nSelect model (1-2, default 1): ").strip() or "1"
+        
+        if model_choice == "2":
+            selected_model = "gpt-4"
+            print("✅ Selected: GPT-4 (better length compliance)")
+        else:
+            selected_model = "gpt-3.5-turbo-16k"  # Force 16k version
+            print("✅ Selected: GPT-3.5 Turbo 16k")
+        
         # Generate script using the script formatter directly
-        print(f"🎯 Generating script with style: {selected_style_key}")
+        print(f"🎯 Generating {selected_style_key} script with {target_duration//60} minute target...")
         
         try:
-            # Use the script formatter directly instead of pipeline.generate_script
+            # Check if the method accepts target_duration and model parameters
             script = self.script_formatter.format_article_to_script(
                 article, 
-                style=selected_style_key
+                style=selected_style_key,
+                target_duration=target_duration if hasattr(self.script_formatter, 'format_article_to_script') else None,
+                model=selected_model if hasattr(self.script_formatter, 'format_article_to_script') else None
             )
             
             if script:
+                actual_minutes = script.estimated_duration // 60
+                target_minutes = target_duration // 60
+                
                 print(f"\n✅ Script generated successfully!")
                 print(f"📄 Title: {script.title}")
                 print(f"📊 Script length: {script.word_count} words")
                 print(f"🎨 Style: {script.style}")
-                print(f"⏱️  Estimated duration: {script.estimated_duration//60} minutes")
+                print(f"⏱️  Estimated duration: {actual_minutes} minutes")
+                print(f"🎯 Target was: {target_minutes} minutes")
+                
+                # Show length compliance
+                if actual_minutes >= target_minutes * 0.8:  # Within 80% of target
+                    print("✅ Length target achieved!")
+                else:
+                    print(f"⚠️  Script is shorter than target ({actual_minutes}/{target_minutes} min)")
+                    print("💡 Try using GPT-4 for better length compliance")
                 
                 # Show where it was saved
-                style_dir = self.script_formatter.cache_dir / script.style
-                print(f"💾 Saved to: {style_dir}")
+                if hasattr(self.script_formatter, 'cache_dir'):
+                    style_dir = self.script_formatter.cache_dir / script.style
+                    print(f"💾 Saved to: {style_dir}")
                 
             else:
                 print("❌ Failed to generate script")
@@ -311,8 +385,8 @@ class InteractiveMenus:
         except Exception as e:
             print(f"❌ Error generating script: {e}")
             import traceback
-            traceback.print_exc()
-    
+            traceback.print_exc()    
+
     def _interactive_complete_podcast(self):
         """Interactive complete podcast generation"""
         topic = input("Enter Wikipedia topic for podcast: ").strip()
@@ -348,10 +422,10 @@ class InteractiveMenus:
         
         if result:
             print(f"\n🎉 PODCAST CREATED SUCCESSFULLY!")
-            print(f"📝 Script: {result['script_file']}")
-            print(f"🎵 Audio: {result['audio_file']}")
-            print(f"⏱️  Duration: {result['duration']} minutes")
-            print(f"🎨 Style: {result['style']}")
+            print(f"📝 Script: {result.get('script_file', 'Unknown')}")
+            print(f"🎵 Audio: {result.get('audio_file', 'Unknown')}")
+            print(f"⏱️  Duration: {result.get('duration', 'Unknown')} minutes")
+            print(f"🎨 Style: {result.get('style', 'Unknown')}")
         else:
             print("❌ Failed to create podcast")
     
@@ -360,7 +434,7 @@ class InteractiveMenus:
         self._script_from_cached_article()
     
     def _interactive_script_to_audio(self):
-        """Interactive audio generation from existing scripts"""
+        """Interactive audio generation from existing scripts - FIXED"""
         scripts = self.script_formatter.list_cached_scripts()
         
         if not scripts:
@@ -389,10 +463,45 @@ class InteractiveMenus:
             audio_result = self.audio_generator.generate_from_script_file(selected_script['filename'])
             
             if audio_result:
-                print(f"\n✅ Audio generated successfully!")
-                print(f"🎵 Audio file: {audio_result['filename']}")
-                print(f"⏱️  Duration: {audio_result['duration']:.1f} minutes")
-                print(f"📊 File size: {audio_result['file_size']:.1f} MB")
+                print(f"\n🎉 AUDIO GENERATED SUCCESSFULLY!")
+                print("=" * 40)
+                
+                # Get filename with fallback
+                filename = audio_result.get('filename', audio_result.get('audio_file', 'Unknown'))
+                print(f"🎵 Audio file: {filename}")
+                
+                # Get file path with fallback
+                file_path = audio_result.get('file_path', audio_result.get('audio_path', 'Unknown'))
+                print(f"📁 Path: {file_path}")
+                
+                # Get duration with fallback
+                duration = audio_result.get('estimated_duration', 0)
+                if duration:
+                    duration_min = duration / 60
+                    print(f"⏱️  Duration: {duration_min:.1f} minutes")
+                
+                # Get file size with fallback
+                file_size = audio_result.get('file_size_mb', 0)
+                if file_size:
+                    print(f"📊 File size: {file_size:.1f} MB")
+                
+                # Get cost with fallback
+                cost = audio_result.get('estimated_cost', 0)
+                if cost:
+                    print(f"💰 Cost: ~${cost:.3f}")
+                
+                # Get voice used
+                voice = audio_result.get('voice_used', 'Unknown')
+                print(f"🎤 Voice: {voice}")
+                
+                # Show TTS provider
+                provider = audio_result.get('tts_provider', 'Unknown')
+                if provider != 'Unknown':
+                    print(f"🔧 Provider: {provider}")
+                
+                if file_path != 'Unknown':
+                    print(f"🎧 Play: open '{file_path}'")
+                
             else:
                 print("❌ Failed to generate audio")
                 
@@ -401,54 +510,68 @@ class InteractiveMenus:
     
     def _interactive_post_production(self):
         """Interactive post-production enhancement"""
-        audio_files = self.audio_generator.list_generated_audio()
-        
-        if not audio_files:
-            print("🎵 No generated audio files found")
+        # Check if the audio generator has the required methods
+        if not hasattr(self.audio_generator, 'list_podcasts'):
+            print("⚠️  Post-production features not available")
+            print("💡 This feature requires additional audio processing methods")
             return
         
-        print(f"\n🎛️ SELECT AUDIO FOR POST-PRODUCTION ({len(audio_files)} available)")
-        print("=" * 60)
-        
-        for i, audio in enumerate(audio_files[:10], 1):
-            print(f"{i:2d}. {audio['title']}")
-            print(f"     🎵 {audio['filename']}")
-            print(f"     ⏱️  Duration: {audio['duration']:.1f} min")
-        
         try:
-            choice = int(input(f"\nSelect audio (1-{min(len(audio_files), 10)}): "))
-            if not (1 <= choice <= min(len(audio_files), 10)):
-                print("❌ Invalid selection")
+            audio_files = self.audio_generator.list_podcasts()
+            
+            if not audio_files:
+                print("🎵 No generated audio files found")
                 return
             
-            selected_audio = audio_files[choice - 1]
+            print(f"\n🎛️ SELECT AUDIO FOR POST-PRODUCTION ({len(audio_files)} available)")
+            print("=" * 60)
             
-            print(f"\n🎛️ POST-PRODUCTION OPTIONS")
-            print("=" * 30)
-            print("1. 🎵 Add background music")
-            print("2. 🔊 Normalize audio levels")
-            print("3. 🎚️ Apply EQ enhancement")
-            print("4. 🌟 Full enhancement suite")
+            for i, audio in enumerate(audio_files[:10], 1):
+                print(f"{i:2d}. {audio.get('title', 'Unknown')}")
+                print(f"     🎵 {audio.get('audio_file', 'Unknown')}")
+                print(f"     ⏱️  Duration: {audio.get('duration', 'Unknown')}")
             
-            enhancement_choice = input("\nSelect enhancement (1-4): ").strip()
-            
-            print(f"\n🎛️ ENHANCING: {selected_audio['title']}")
-            print("=" * 40)
-            
-            enhancement_result = self.audio_generator.enhance_audio(
-                selected_audio['filename'], 
-                enhancement_type=enhancement_choice
-            )
-            
-            if enhancement_result:
-                print(f"\n✅ Audio enhanced successfully!")
-                print(f"🎵 Enhanced file: {enhancement_result['filename']}")
-                print(f"📊 Improvements: {enhancement_result['enhancements']}")
-            else:
-                print("❌ Failed to enhance audio")
+            try:
+                choice = int(input(f"\nSelect audio (1-{min(len(audio_files), 10)}): "))
+                if not (1 <= choice <= min(len(audio_files), 10)):
+                    print("❌ Invalid selection")
+                    return
                 
-        except (ValueError, IndexError):
-            print("❌ Invalid selection")
+                selected_audio = audio_files[choice - 1]
+                
+                print(f"\n🎛️ POST-PRODUCTION OPTIONS")
+                print("=" * 30)
+                print("1. 🎵 Add background music")
+                print("2. 🔊 Normalize audio levels")
+                print("3. 🎚️ Apply EQ enhancement")
+                print("4. 🌟 Full enhancement suite")
+                
+                enhancement_choice = input("\nSelect enhancement (1-4): ").strip()
+                
+                print(f"\n🎛️ ENHANCING: {selected_audio.get('title', 'Unknown')}")
+                print("=" * 40)
+                
+                # Check if enhance_audio method exists
+                if hasattr(self.audio_generator, 'enhance_audio'):
+                    enhancement_result = self.audio_generator.enhance_audio(
+                        selected_audio.get('audio_file', ''), 
+                        enhancement_type=enhancement_choice
+                    )
+                    
+                    if enhancement_result:
+                        print(f"\n✅ Audio enhanced successfully!")
+                        print(f"🎵 Enhanced file: {enhancement_result.get('filename', 'Unknown')}")
+                        print(f"📊 Improvements: {enhancement_result.get('enhancements', 'Unknown')}")
+                    else:
+                        print("❌ Failed to enhance audio")
+                else:
+                    print("⚠️  Audio enhancement not implemented yet")
+                    
+            except (ValueError, IndexError):
+                print("❌ Invalid selection")
+                
+        except Exception as e:
+            print(f"❌ Error in post-production: {e}")
     
     def _show_cached_scripts(self):
         """Display cached scripts"""
@@ -469,22 +592,31 @@ class InteractiveMenus:
             print()
     
     def _show_podcasts(self):
-        """Display generated podcasts"""
-        podcasts = self.audio_generator.list_generated_audio()
-        
-        if not podcasts:
-            print("🎧 No generated podcasts found")
-            return
-        
-        print(f"\n🎧 GENERATED PODCASTS ({len(podcasts)} total)")
-        print("=" * 40)
-        
-        for i, podcast in enumerate(podcasts, 1):
-            print(f"{i:2d}. {podcast['title']}")
-            print(f"     🎵 {podcast['filename']}")
-            print(f"     ⏱️  Duration: {podcast['duration']:.1f} minutes")
-            print(f"     📊 Size: {podcast['file_size']:.1f} MB")
-            print()
+        """Display generated podcasts - FIXED"""
+        try:
+            # Use the correct method name
+            podcasts = self.audio_generator.list_podcasts()
+            
+            if not podcasts:
+                print("🎧 No generated podcasts found")
+                return
+            
+            print(f"\n🎧 GENERATED PODCASTS ({len(podcasts)} total)")
+            print("=" * 40)
+            
+            for i, podcast in enumerate(podcasts, 1):
+                print(f"{i:2d}. {podcast.get('title', 'Unknown')}")
+                print(f"     🎵 {podcast.get('audio_file', 'Unknown')}")
+                print(f"     ⏱️  Duration: {podcast.get('duration', 'Unknown')}")
+                print(f"     📊 Size: {podcast.get('size_mb', 0):.1f} MB")
+                print(f"     💰 Cost: ~${podcast.get('cost', 0):.3f}")
+                print(f"     🎤 Voice: {podcast.get('voice', 'Unknown')}")
+                print(f"     🔧 Provider: {podcast.get('provider', 'Unknown')}")
+                print()
+                
+        except Exception as e:
+            print(f"❌ Error listing podcasts: {e}")
+            print("⚠️  Podcast listing not available")
     
     def _show_styles(self):
         """Display available styles with descriptions"""
@@ -496,8 +628,8 @@ class InteractiveMenus:
         for i, (style_key, style_info) in enumerate(styles_dict.items(), 1):
             print(f"{i}. {style_info['name']}")
             print(f"   📝 {style_info['description']}")
-            print(f"   ⏱️  Target duration: {style_info['target_duration']}")
-            print(f"   🎤 Voice style: {style_info['voice_style']}")
+            print(f"   ⏱️  Target duration: {style_info.get('target_duration', 'Unknown')}")
+            print(f"   🎤 Voice style: {style_info.get('voice_style', 'Unknown')}")
             print()
     
     def _clear_cache(self):
@@ -516,8 +648,11 @@ class InteractiveMenus:
             confirm = input("⚠️  Clear all cached articles? (y/N): ").strip().lower()
             if confirm == 'y':
                 try:
-                    cleared = self.content_fetcher.clear_cache()
-                    print(f"✅ Cleared {cleared} cached articles")
+                    if hasattr(self.content_fetcher, 'clear_cache'):
+                        cleared = self.content_fetcher.clear_cache()
+                        print(f"✅ Cleared {cleared} cached articles")
+                    else:
+                        print("⚠️  Clear cache method not available")
                 except Exception as e:
                     print(f"❌ Error clearing article cache: {e}")
         
@@ -535,8 +670,12 @@ class InteractiveMenus:
             confirm = input("⚠️  Clear all generated audio? (y/N): ").strip().lower()
             if confirm == 'y':
                 try:
-                    cleared = self.audio_generator.clear_cache()
-                    print(f"✅ Cleared {cleared} audio files")
+                    if hasattr(self.audio_generator, 'clear_cache'):
+                        cleared = self.audio_generator.clear_cache()
+                        print(f"✅ Cleared {cleared} audio files")
+                    else:
+                        cleared = self._clear_audio_cache()
+                        print(f"✅ Cleared {cleared} audio files")
                 except Exception as e:
                     print(f"❌ Error clearing audio cache: {e}")
         
@@ -545,20 +684,22 @@ class InteractiveMenus:
             if confirm == 'y':
                 try:
                     # Clear articles
-                    articles_cleared = self.content_fetcher.clear_cache()
+                    articles_cleared = 0
+                    if hasattr(self.content_fetcher, 'clear_cache'):
+                        articles_cleared = self.content_fetcher.clear_cache()
                     print(f"✅ Cleared {articles_cleared} articles")
                     
                     # Clear scripts
                     scripts_cleared = self._clear_script_cache()
                     print(f"✅ Cleared {scripts_cleared} scripts")
                     
-                    # Clear audio (if method exists)
-                    try:
+                    # Clear audio
+                    audio_cleared = 0
+                    if hasattr(self.audio_generator, 'clear_cache'):
                         audio_cleared = self.audio_generator.clear_cache()
-                        print(f"✅ Cleared {audio_cleared} audio files")
-                    except AttributeError:
+                    else:
                         audio_cleared = self._clear_audio_cache()
-                        print(f"✅ Cleared {audio_cleared} audio files")
+                    print(f"✅ Cleared {audio_cleared} audio files")
                     
                     print(f"🎉 Total cleared: {articles_cleared} articles, {scripts_cleared} scripts, {audio_cleared} audio files")
                     
@@ -574,18 +715,18 @@ class InteractiveMenus:
     def _clear_script_cache(self):
         """Manually clear script cache since the method doesn't exist in PodcastScriptFormatter"""
         try:
-            import os
             cleared = 0
             
             # Get the script cache directory
-            cache_dir = self.script_formatter.cache_dir
-            
-            # Clear all subdirectories (styles)
-            for style_dir in cache_dir.iterdir():
-                if style_dir.is_dir():
-                    for script_file in style_dir.glob('*.json'):
-                        script_file.unlink()
-                        cleared += 1
+            if hasattr(self.script_formatter, 'cache_dir'):
+                cache_dir = self.script_formatter.cache_dir
+                
+                # Clear all subdirectories (styles)
+                for style_dir in cache_dir.iterdir():
+                    if style_dir.is_dir():
+                        for script_file in style_dir.glob('*.json'):
+                            script_file.unlink()
+                            cleared += 1
             
             return cleared
             
@@ -596,12 +737,13 @@ class InteractiveMenus:
     def _clear_audio_cache(self):
         """Manually clear audio cache if the method doesn't exist"""
         try:
-            import os
             cleared = 0
             
-            # You'll need to adjust this path based on where audio files are stored
-            # This is a guess - you might need to check your audio_generator implementation
-            audio_dir = Path("../audio_output")  # Adjust this path as needed
+            # Get the audio directory from the audio generator
+            if hasattr(self.audio_generator, 'audio_dir'):
+                audio_dir = self.audio_generator.audio_dir
+            else:
+                audio_dir = Path("../audio_output")  # Fallback
             
             if audio_dir.exists():
                 for audio_file in audio_dir.glob('*.mp3'):

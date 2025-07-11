@@ -664,132 +664,483 @@ class PodcastScriptFormatter:
                      content: str,
                      custom_instructions: str = None,
                      target_duration: int = None) -> str:
-        """Build the prompt for OpenAI"""
+        """Build the prompt for OpenAI with smart truncation for long articles"""
         
         duration = target_duration or style_config['target_duration']
         duration_minutes = duration // 60
         target_words = duration_minutes * 175  # ~175 words per minute
         
-        # More efficient prompt building
-        prompt_parts = [
-            f"Create a {style_config['name'].lower()} podcast script about: {article.title}",
-            "",
-            f"REQUIREMENTS:",
-            f"- Style: {style_config['description']}",
-            f"- Length: {duration_minutes} minutes (~{target_words} words)",
-            f"- Tone: {style_config.get('voice_style', 'engaging')}",
-            f"- Format: Complete script ready for audio recording",
-            "",
-            "GUIDELINES:",
-            "- Write for natural speech delivery",
-            "- Include engaging details and examples", 
-            "- Make it comprehensive and informative",
-            "- Use clear pronunciation guides [like this] for difficult terms",
-            "- Create smooth transitions between topics",
-        ]
-        
+        # Build the core requirements and instructions first
+        requirements_section = f"""Create a {style_config['name'].lower()} podcast script about: {article.title}
+    
+    CRITICAL REQUIREMENTS:
+    - Target Length: EXACTLY {duration_minutes} minutes of spoken content
+    - Word Count: Approximately {target_words} words (THIS IS MANDATORY)
+    - Style: {style_config['description']}
+    - Tone: {style_config.get('voice_style', 'engaging')}
+    - Format: Complete script ready for audio recording
+    
+    LENGTH REQUIREMENTS (VERY IMPORTANT):
+    - You MUST write approximately {target_words} words
+    - This should take exactly {duration_minutes} minutes to read aloud
+    - Do NOT write a short summary - write a FULL {duration_minutes}-minute script
+    - Include comprehensive details, examples, and thorough explanations
+    - If the content seems insufficient, expand with related context and background
+    
+    CONTENT GUIDELINES:
+    - Write for natural speech delivery at normal pace
+    - Include engaging details, examples, and anecdotes
+    - Make it comprehensive and informative
+    - Use clear pronunciation guides [like this] for difficult terms
+    - Create smooth transitions between topics
+    - Fill the ENTIRE time with valuable, interesting content"""
+    
         if custom_instructions:
-            prompt_parts.extend([
-                "",
-                f"SPECIAL INSTRUCTIONS: {custom_instructions}",
-            ])
-        
-        # Add a condensed version of the style template
+            requirements_section += f"\n\nSPECIAL INSTRUCTIONS: {custom_instructions}"
+    
+        # Add condensed style guidance
         style_guidance = style_config['prompt_template'].format(topic=article.title)
-        # Take key parts of the template
-        style_lines = style_guidance.split('\n')
-        key_style_lines = [line for line in style_lines if line.strip() and not line.startswith('Length:')][:15]
+        style_lines = [line.strip() for line in style_guidance.split('\n') if line.strip() and not line.startswith('Length:')]
+        condensed_style = '\n'.join(style_lines[:8])  # Take only first 8 meaningful lines
+    
+        style_section = f"""
+    STYLE DETAILS:
+    {condensed_style}
+    
+    REMINDER: Write {target_words} words for {duration_minutes} minutes of content!"""
+    
+        # Smart content truncation based on available space
+        base_prompt = requirements_section + style_section
+        base_tokens = len(base_prompt.split()) * 1.33  # Rough token estimate
         
-        prompt_parts.extend([
-            "",
-            "STYLE DETAILS:",
-            '\n'.join(key_style_lines[:10]),  # Limit to prevent token overflow
+        # Leave room for final instructions and model overhead
+        available_tokens_for_content = 5000 - base_tokens - 500  # Conservative limit
+        available_words_for_content = int(available_tokens_for_content / 1.33)
+        
+        # Truncate content intelligently
+        if len(content.split()) > available_words_for_content:
+            print(f"⚠️  Truncating content from {len(content.split())} to ~{available_words_for_content} words")
+            
+            # Split content into sections
+            content_parts = content.split('\n\n')
+            
+            # Always keep the summary if it exists
+            truncated_parts = []
+            word_count = 0
+            
+            for part in content_parts:
+                part_words = len(part.split())
+                if word_count + part_words <= available_words_for_content:
+                    truncated_parts.append(part)
+                    word_count += part_words
+                else:
+                    # Add partial content if there's room
+                    remaining_words = available_words_for_content - word_count
+                    if remaining_words > 50:  # Only if meaningful amount left
+                        partial_part = ' '.join(part.split()[:remaining_words])
+                        truncated_parts.append(partial_part)
+                    break
+            
+            content = '\n\n'.join(truncated_parts)
+            
+            # Add note about truncation
+            content += f"\n\n[Content has been truncated for processing. Use the key information above and your knowledge to create a comprehensive {duration_minutes}-minute script about {article.title}.]"
+    
+        # Build final prompt
+        final_prompt_parts = [
+            requirements_section,
+            style_section,
             "",
             "SOURCE CONTENT:",
             content,
             "",
-            f"Generate the complete {duration_minutes}-minute podcast script now:"
-        ])
+            f"Generate the complete {duration_minutes}-minute podcast script now.",
+            f"Remember: {target_words} words minimum, comprehensive coverage, full {duration_minutes} minutes of content!",
+            "Be thorough and detailed - expand topics with examples, context, and explanations to reach the target length."
+        ]
         
-        return '\n'.join(prompt_parts)
+        return '\n'.join(final_prompt_parts)
     
     def _generate_with_openai(self, prompt: str, model: str = "gpt-3.5-turbo") -> Optional[str]:
-        """Generate script content using OpenAI with better error handling"""
+            """Generate script content using OpenAI with FIXED token management"""
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=self.openai_api_key)
+                
+                prompt_words = len(prompt.split())
+                estimated_prompt_tokens = int(prompt_words * 1.3)
+                
+                print(f"📊 Initial prompt: {prompt_words} words (~{estimated_prompt_tokens} tokens)")
+                
+                # STRICT token limits for GPT-4
+                if model == "gpt-4":
+                    print("🧠 Using GPT-4 as requested...")
+                    context_limit = 8192
+                    max_response_tokens = 3000  # Conservative but allows long responses
+                    max_prompt_tokens = context_limit - max_response_tokens - 200  # Safety buffer = ~4992
+                    
+                    # ALWAYS truncate for GPT-4 - prompts are too long
+                    if estimated_prompt_tokens > max_prompt_tokens:
+                        print(f"⚠️  Prompt too long ({estimated_prompt_tokens} tokens), truncating to {max_prompt_tokens}...")
+                        prompt = self._truncate_prompt_aggressively(prompt, max_prompt_tokens)
+                        # Verify truncation worked
+                        new_tokens = int(len(prompt.split()) * 1.3)
+                        print(f"✅ Truncated prompt: {len(prompt.split())} words (~{new_tokens} tokens)")
+                        estimated_prompt_tokens = new_tokens
+                    
+                else:
+                    max_prompt_tokens = 2500
+                    max_response_tokens = 1500
+                    
+                    if estimated_prompt_tokens > max_prompt_tokens:
+                        prompt = self._truncate_prompt_aggressively(prompt, max_prompt_tokens)
+                        estimated_prompt_tokens = int(len(prompt.split()) * 1.3)
+                
+                print(f"🤖 Model: {model}")
+                print(f"📤 Max response tokens: {max_response_tokens}")
+                print(f"🎯 Target: ~1750 words for 10 minutes")
+                
+                # Focused system prompt
+                system_prompt = """You are a podcast script writer. Create a 1,750-word conversational script using ONLY the article information provided.
+    
+    FOCUS on the most interesting and engaging aspects. Create a coherent narrative with clear beginning, middle, and end. Use a conversational tone like talking to a friend."""
+                
+                # Single attempt with good settings
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=max_response_tokens,
+                    temperature=0.9,
+                    top_p=0.95,
+                    frequency_penalty=0.3,
+                    presence_penalty=0.6
+                )
+                
+                result = response.choices[0].message.content.strip()
+                generated_words = len(result.split())
+                print(f"✅ Generated {generated_words} words")
+                
+                # Try extension if too short
+                if generated_words < 1400:  # Less than 80% of target
+                    print(f"⚠️  Script too short, attempting extension...")
+                    extended_result = self._extend_script_simple(client, result, model)
+                    if extended_result and len(extended_result.split()) > generated_words:
+                        result = extended_result
+                        generated_words = len(extended_result.split())
+                        print(f"✅ Extended to {generated_words} words")
+                
+                return result
+                
+            except Exception as e:
+                print(f"❌ OpenAI API error: {e}")
+                return None
+    
+    def _truncate_prompt_aggressively(self, prompt: str, max_tokens: int) -> str:
+        """Aggressively truncate prompt to fit token limit"""
+        
+        # Target words based on token limit
+        target_words = int(max_tokens / 1.3)
+        
+        # Extract the essential parts
+        lines = prompt.split('\n')
+        
+        # Find content section
+        content_start = -1
+        for i, line in enumerate(lines):
+            if "SOURCE CONTENT:" in line:
+                content_start = i
+                break
+        
+        if content_start == -1:
+            # No content section, just truncate everything
+            words = prompt.split()
+            return ' '.join(words[:target_words])
+        
+        # Build minimal prompt
+        essential_parts = []
+        
+        # Add basic instructions (keep minimal)
+        essential_parts.append("Create a 10-minute conversational podcast script about the subject.")
+        essential_parts.append("Target: 1,750 words using only the article information below.")
+        essential_parts.append("Focus on the most interesting aspects with clear beginning, middle, end.")
+        essential_parts.append("")
+        essential_parts.append("ARTICLE CONTENT:")
+        
+        # Add content but heavily truncated
+        content_lines = lines[content_start + 1:]
+        content_text = '\n'.join(content_lines)
+        
+        # Keep only the most essential content
+        content_parts = content_text.split('\n\n')
+        selected_content = []
+        current_words = len(' '.join(essential_parts).split())
+        
+        for part in content_parts:
+            part = part.strip()
+            if not part:
+                continue
+            
+            # Prioritize summary and key info
+            if any(keyword in part.lower() for keyword in ['summary:', 'born', 'career', 'tennis', 'championship', 'sabalenka']):
+                part_words = len(part.split())
+                if current_words + part_words < target_words - 50:  # Leave room for instructions
+                    selected_content.append(part)
+                    current_words += part_words
+                else:
+                    # Add partial content
+                    remaining = target_words - current_words - 50
+                    if remaining > 20:
+                        partial = ' '.join(part.split()[:remaining])
+                        selected_content.append(partial)
+                    break
+        
+        # Combine everything
+        essential_parts.extend(selected_content)
+        essential_parts.append("")
+        essential_parts.append("Create the 1,750-word script focusing on the most engaging aspects:")
+        
+        final_prompt = '\n'.join(essential_parts)
+        
+        # Verify it fits
+        final_words = len(final_prompt.split())
+        if final_words > target_words:
+            words = final_prompt.split()
+            final_prompt = ' '.join(words[:target_words])
+        
+        return final_prompt
+    
+    def _extend_script_simple(self, client, script: str, model: str) -> Optional[str]:
+        """Simple extension method"""
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=self.openai_api_key)
-            
-            # Estimate prompt tokens (rough: 1 token ≈ 0.75 words)
-            prompt_words = len(prompt.split())
-            estimated_prompt_tokens = int(prompt_words * 1.33)
-            
-            print(f"📊 Prompt: {prompt_words} words (~{estimated_prompt_tokens} tokens)")
-            
-            # Adjust model and tokens based on prompt size
-            if estimated_prompt_tokens > 14000:
-                print("⚠️  Prompt is very long, truncating to prevent API errors...")
-                # Aggressively truncate
-                words = prompt.split()
-                truncated_prompt = ' '.join(words[:10000])
-                prompt = truncated_prompt + "\n\nGenerate the complete podcast script based on the content above."
-                estimated_prompt_tokens = 13000
-            
-            # Set response token limits
-            if model == "gpt-4":
-                max_response_tokens = min(3000, 8192 - estimated_prompt_tokens - 100)
-            else:  # gpt-3.5-turbo
-                max_response_tokens = min(3500, 4096 - estimated_prompt_tokens - 100)
-            
-            if max_response_tokens < 500:
-                print("⚠️  Prompt too long, switching to gpt-3.5-turbo-16k...")
-                model = "gpt-3.5-turbo-16k"
-                max_response_tokens = min(4000, 16384 - estimated_prompt_tokens - 100)
-            
-            print(f"🤖 Model: {model}, Max response tokens: {max_response_tokens}")
+            extension_prompt = f"""Extend this podcast script to 1,750 words by adding more detail and examples from the original article.
+
+Current script ({len(script.split())} words):
+{script}
+
+Make it longer and more detailed while staying engaging:"""
             
             response = client.chat.completions.create(
                 model=model,
                 messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are an expert podcast script writer. Create engaging, comprehensive scripts ready for audio recording. Write naturally for speech, include interesting details, and maintain the target length."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": "Extend this script to 1,750 words with more detail and examples."},
+                    {"role": "user", "content": extension_prompt}
                 ],
-                max_tokens=max_response_tokens,
-                temperature=0.7,
-                top_p=0.9
+                max_tokens=3000,
+                temperature=0.9
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            print(f"❌ Extension failed: {e}")
+            return None    
+    def _extend_script_aggressively(self, client, script: str, target_words: int, model: str) -> Optional[str]:
+        """Extend script while maintaining article focus and coherence"""
+        try:
+            current_words = len(script.split())
+            needed_words = target_words - current_words
+            
+            extension_prompt = f"""I have a {current_words}-word podcast script that needs to be expanded to {target_words} words.
+    
+    🎯 EXPANSION STRATEGY:
+    - Identify sections that can be expanded with more detail from the article
+    - Add more explanation of interesting facts and details
+    - Expand on compelling human stories or dramatic moments
+    - Provide more context for significant events or achievements
+    - Elaborate on the impact or significance of key developments
+    
+    📋 REQUIREMENTS:
+    - Use ONLY information from the original article (no external knowledge)
+    - Maintain the coherent beginning-middle-end structure
+    - Keep the conversational, engaging tone
+    - Expand interesting parts more than boring parts
+    - Ensure smooth transitions between sections
+    
+    Current script:
+    {script}
+    
+    Rewrite as a comprehensive, coherent {target_words}-word script:"""
+    
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": f"Expand this article-based script to exactly {target_words} words. Focus on the most interesting aspects while maintaining coherence and using only article information."},
+                    {"role": "user", "content": extension_prompt}
+                ],
+                max_tokens=4000,
+                temperature=0.9,
+                frequency_penalty=0.3,
+                presence_penalty=0.6
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            print(f"❌ Extension failed: {e}")
+            return None  
+
+    def _truncate_prompt_to_tokens(self, prompt: str, max_tokens: int) -> str:
+        """Aggressively truncate prompt to fit within token limit"""
+        lines = prompt.split('\n')
+        
+        # Find the content section
+        content_start = -1
+        for i, line in enumerate(lines):
+            if "SOURCE CONTENT:" in line:
+                content_start = i
+                break
+        
+        if content_start == -1:
+            # No content section found, just truncate from end
+            words = prompt.split()
+            target_words = int(max_tokens / 1.3)
+            return ' '.join(words[:target_words])
+        
+        # Keep everything before content
+        pre_content = '\n'.join(lines[:content_start + 1])
+        
+        # Calculate how many tokens we have left for content
+        pre_content_tokens = int(len(pre_content.split()) * 1.3)
+        remaining_tokens = max_tokens - pre_content_tokens - 200  # Large buffer
+        remaining_words = max(100, int(remaining_tokens / 1.3))  # Minimum 100 words
+        
+        # Take only the most essential content
+        content_lines = lines[content_start + 1:]
+        content_text = '\n'.join(content_lines)
+        
+        # Prioritize summary and key information
+        content_parts = content_text.split('\n\n')
+        essential_content = []
+        word_count = 0
+        
+        for part in content_parts:
+            part = part.strip()
+            if not part:
+                continue
+                
+            # Prioritize summary and key biographical info
+            if any(keyword in part for keyword in ['SUMMARY:', 'born', 'career', 'achievement', 'championship']):
+                part_words = len(part.split())
+                if word_count + part_words <= remaining_words:
+                    essential_content.append(part)
+                    word_count += part_words
+                else:
+                    # Add partial content
+                    remaining = remaining_words - word_count
+                    if remaining > 20:
+                        partial = ' '.join(part.split()[:remaining])
+                        essential_content.append(partial)
+                    break
+            elif word_count < remaining_words * 0.7:  # Only add other content if we have room
+                part_words = len(part.split())
+                if word_count + part_words <= remaining_words:
+                    essential_content.append(part)
+                    word_count += part_words
+        
+        truncated_content = '\n\n'.join(essential_content)
+        
+        # Create minimal but effective prompt
+        final_prompt = f"""{pre_content}
+    {truncated_content}
+    
+    🎯 TASK: Create a fascinating 10-minute conversational podcast script (1,750 words) about this subject.
+    Focus on the most interesting and engaging aspects from the content above.
+    Create a coherent narrative with clear beginning, middle, and end.
+    Use only the information provided - no external knowledge."""
+        
+        return final_prompt   
+
+    def _generate_with_minimal_prompt(self, original_prompt: str, model: str) -> Optional[str]:
+        """Emergency fallback with minimal prompt"""
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=self.openai_api_key)
+            
+            print("🚨 Using emergency minimal prompt...")
+            
+            # Extract just the topic from the original prompt
+            topic_match = re.search(r'TOPIC:\s*([^\n]+)', original_prompt)
+            topic = topic_match.group(1) if topic_match else "the subject"
+            
+            # Extract key content
+            content_match = re.search(r'(SUMMARY:.*?)(?=\n\n[A-Z]+:|$)', original_prompt, re.DOTALL)
+            key_content = content_match.group(1) if content_match else "No content available"
+            
+            # Minimal but effective prompt
+            minimal_prompt = f"""Create a comprehensive 10-minute conversational podcast script about {topic}.
+
+TARGET: 1,750 words (10 minutes of speech)
+
+Key information:
+{key_content[:1000]}
+
+Write a detailed, engaging script that:
+- Includes extensive background and context
+- Provides detailed examples and stories
+- Explains concepts thoroughly
+- Reaches the full 1,750 word target
+
+Begin the script:"""
+            
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "You are a podcast script writer. Create comprehensive 10-minute scripts with 1,750 words. Expand topics with detailed explanations and examples."},
+                    {"role": "user", "content": minimal_prompt}
+                ],
+                max_tokens=3000,
+                temperature=0.7
             )
             
             result = response.choices[0].message.content.strip()
-            print(f"✅ Generated {len(result.split())} words")
+            generated_words = len(result.split())
+            print(f"✅ Emergency prompt generated {generated_words} words")
+            
             return result
             
         except Exception as e:
-            error_str = str(e)
-            print(f"❌ OpenAI API error: {error_str}")
-            
-            # Provide specific error guidance
-            if "authentication" in error_str.lower():
-                print("💡 Check your API key at: https://platform.openai.com/api-keys")
-            elif "quota" in error_str.lower() or "billing" in error_str.lower():
-                print("💡 Check your billing at: https://platform.openai.com/account/billing")
-            elif "rate_limit" in error_str.lower():
-                print("💡 Rate limit hit, trying again in 5 seconds...")
-                import time
-                time.sleep(5)
-                # One retry
-                try:
-                    return self._generate_with_openai(prompt, "gpt-3.5-turbo")
-                except:
-                    pass
-            elif "context_length" in error_str.lower():
-                print("💡 Content too long, try with a shorter article or use chapter editing")
-            
+            print(f"❌ Emergency prompt also failed: {e}")
             return None
+    
+    def _generate_with_openai_reduced(self, prompt: str, model: str) -> Optional[str]:
+        """Fallback method with conservative token limits"""
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=self.openai_api_key)
+            
+            print("🔄 Retrying with conservative token limits...")
+            
+            # Very conservative token limits
+            if model == "gpt-4":
+                max_tokens = 2000
+            else:
+                max_tokens = 1500
+            
+            system_prompt = "You are a podcast script writer. Write comprehensive, detailed scripts that meet the target length. Expand with examples and thorough explanations."
+            
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=0.7
+            )
+            
+            result = response.choices[0].message.content.strip()
+            generated_words = len(result.split())
+            print(f"✅ Generated {generated_words} words (reduced mode)")
+            
+            return result
+            
+        except Exception as e:
+            print(f"❌ Reduced mode also failed: {e}")
+            return None 
+    
     
     def _parse_generated_script(self, script: str, style: str, title: str) -> Dict[str, any]:
         """Parse the generated script to extract segments"""
@@ -882,7 +1233,6 @@ class PodcastScriptFormatter:
             
         except Exception as e:
             print(f"Warning: Could not save script to cache: {e}")
-
 
 # Diagnostic and testing functions
 def test_setup():
