@@ -1,0 +1,1754 @@
+================================================================================
+PROJECT CODE ANALYSIS REPORT
+================================================================================
+
+Project Path: /Users/itamar/projects/wikipedia
+Total Files: 58
+Generated: /Users/itamar/projects/wikipedia
+
+FILE TYPES SUMMARY:
+----------------------------------------
+.env            :    2 files
+.example        :    1 files
+.json           :   24 files
+.md             :    1 files
+.mp3            :    4 files
+.py             :   24 files
+.sh             :    1 files
+.txt            :    1 files
+
+================================================================================
+FILE: README.md
+================================================================================
+Path: /Users/itamar/projects/wikipedia/README.md
+Size: 189 bytes
+Extension: .md
+
+Lines:
+  3
+
+Size:
+  184
+
+Type:
+  text
+
+
+================================================================================
+FILE: analyze_codebase.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/analyze_codebase.py
+Size: 7,688 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Subscript' is not iterable
+
+================================================================================
+FILE: audio_output/5_echo_20250618_214608.mp3.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/audio_output/5_echo_20250618_214608.mp3.json
+Size: 444 bytes
+Extension: .json
+
+Lines:
+  15
+
+Size:
+  444
+
+Type:
+  text
+
+
+================================================================================
+FILE: audio_output/Machine_learning_nova_20250618_212050.mp3.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/audio_output/Machine_learning_nova_20250618_212050.mp3.json
+Size: 647 bytes
+Extension: .json
+
+Lines:
+  18
+
+Size:
+  647
+
+Type:
+  text
+
+
+================================================================================
+FILE: audio_output/Martin_Margiela_onyx_20250618_212744.mp3.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/audio_output/Martin_Margiela_onyx_20250618_212744.mp3.json
+Size: 511 bytes
+Extension: .json
+
+Lines:
+  15
+
+Size:
+  511
+
+Type:
+  text
+
+
+================================================================================
+FILE: audio_output/North_Korea_shimmer_20250618_215710.mp3.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/audio_output/North_Korea_shimmer_20250618_215710.mp3.json
+Size: 503 bytes
+Extension: .json
+
+Lines:
+  15
+
+Size:
+  503
+
+Type:
+  text
+
+
+================================================================================
+FILE: audio_output/Oyster_sauce_onyx_20250618_213336.mp3.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/audio_output/Oyster_sauce_onyx_20250618_213336.mp3.json
+Size: 498 bytes
+Extension: .json
+
+Lines:
+  15
+
+Size:
+  498
+
+Type:
+  text
+
+
+================================================================================
+FILE: config/api_keys.env
+================================================================================
+Path: /Users/itamar/projects/wikipedia/config/api_keys.env
+Size: 223 bytes
+Extension: .env
+
+Lines:
+  2
+
+Size:
+  223
+
+Type:
+  text
+
+
+================================================================================
+FILE: config/api_keys.env.example
+================================================================================
+Path: /Users/itamar/projects/wikipedia/config/api_keys.env.example
+Size: 377 bytes
+Extension: .example
+
+Lines:
+  10
+
+Size:
+  377
+
+Type:
+  text
+
+
+================================================================================
+FILE: fix_tests_issues.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/fix_tests_issues.py
+Size: 4,709 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Constant' is not iterable
+
+================================================================================
+FILE: processed_scripts/conversational/Aryna_Sabalenka_20250711_1926.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/processed_scripts/conversational/Aryna_Sabalenka_20250711_1926.json
+Size: 10,030 bytes
+Extension: .json
+
+Lines:
+  58
+
+Size:
+  10028
+
+Type:
+  text
+
+
+================================================================================
+FILE: processed_scripts/conversational/Aryna_Sabalenka_20250711_1938.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/processed_scripts/conversational/Aryna_Sabalenka_20250711_1938.json
+Size: 12,801 bytes
+Extension: .json
+
+Lines:
+  94
+
+Size:
+  12799
+
+Type:
+  text
+
+
+================================================================================
+FILE: processed_scripts/conversational/Aryna_Sabalenka_20250711_2118.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/processed_scripts/conversational/Aryna_Sabalenka_20250711_2118.json
+Size: 15,899 bytes
+Extension: .json
+
+Lines:
+  78
+
+Size:
+  15845
+
+Type:
+  text
+
+
+================================================================================
+FILE: processed_scripts/conversational/Donald_Trump_20250623_0027.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/processed_scripts/conversational/Donald_Trump_20250623_0027.json
+Size: 9,841 bytes
+Extension: .json
+
+Lines:
+  54
+
+Size:
+  9835
+
+Type:
+  text
+
+
+================================================================================
+FILE: processed_scripts/conversational/Zohran_Mamdani_20250628_1826.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/processed_scripts/conversational/Zohran_Mamdani_20250628_1826.json
+Size: 8,069 bytes
+Extension: .json
+
+Lines:
+  46
+
+Size:
+  8061
+
+Type:
+  text
+
+
+================================================================================
+FILE: processed_scripts/conversational/Zohran_Mamdani_20250628_1836.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/processed_scripts/conversational/Zohran_Mamdani_20250628_1836.json
+Size: 8,655 bytes
+Extension: .json
+
+Lines:
+  50
+
+Size:
+  8655
+
+Type:
+  text
+
+
+================================================================================
+FILE: processed_scripts/conversational/Zohran_Mamdani_20250628_1839.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/processed_scripts/conversational/Zohran_Mamdani_20250628_1839.json
+Size: 9,599 bytes
+Extension: .json
+
+Lines:
+  50
+
+Size:
+  9599
+
+Type:
+  text
+
+
+================================================================================
+FILE: project_diagnostic.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/project_diagnostic.py
+Size: 33,948 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Call' is not iterable
+
+================================================================================
+FILE: raw_articles/Amanda_Anisimova.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/Amanda_Anisimova.json
+Size: 23,472 bytes
+Extension: .json
+
+Lines:
+  57
+
+Size:
+  23425
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/Aryna_Sabalenka.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/Aryna_Sabalenka.json
+Size: 57,786 bytes
+Extension: .json
+
+Lines:
+  80
+
+Size:
+  57602
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/Donald_Trump.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/Donald_Trump.json
+Size: 86,782 bytes
+Extension: .json
+
+Lines:
+  92
+
+Size:
+  86689
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/Squid_Game_season_3.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/Squid_Game_season_3.json
+Size: 8,136 bytes
+Extension: .json
+
+Lines:
+  56
+
+Size:
+  8136
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/Superman_2025_film.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/Superman_2025_film.json
+Size: 60,418 bytes
+Extension: .json
+
+Lines:
+  92
+
+Size:
+  60310
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/Zohran_Mamdani.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/Zohran_Mamdani.json
+Size: 28,642 bytes
+Extension: .json
+
+Lines:
+  89
+
+Size:
+  28619
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/trending_20250628_1826.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/trending_20250628_1826.json
+Size: 8,357 bytes
+Extension: .json
+
+Lines:
+  60
+
+Size:
+  8357
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/trending_20250711_1906.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/trending_20250711_1906.json
+Size: 81,719 bytes
+Extension: .json
+
+Lines:
+  139
+
+Size:
+  81488
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/xxx.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/xxx.json
+Size: 10,675 bytes
+Extension: .json
+
+Lines:
+  50
+
+Size:
+  10671
+
+Type:
+  text
+
+
+================================================================================
+FILE: requirements.txt
+================================================================================
+Path: /Users/itamar/projects/wikipedia/requirements.txt
+Size: 360 bytes
+Extension: .txt
+
+Lines:
+  20
+
+Size:
+  360
+
+Type:
+  text
+
+
+================================================================================
+FILE: run_tests.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/run_tests.py
+Size: 29,967 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Constant' is not iterable
+
+================================================================================
+FILE: setup_tests.sh
+================================================================================
+Path: /Users/itamar/projects/wikipedia/setup_tests.sh
+Size: 3,494 bytes
+Extension: .sh
+
+Lines:
+  128
+
+Size:
+  3420
+
+Type:
+  text
+
+
+================================================================================
+FILE: src/api_diagnostic.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/api_diagnostic.py
+Size: 1,139 bytes
+Extension: .py
+
+📦 Imports:
+  - content_fetcher.WikipediaContentFetcher
+  - script_formatter.PodcastScriptFormatter
+  - traceback
+
+
+================================================================================
+FILE: src/article_editor.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/article_editor.py
+Size: 8,166 bytes
+Extension: .py
+
+📦 Imports:
+  - openai
+  - re
+  - time
+  - typing.List
+  - typing.Tuple
+  - json
+  - os
+
+🔢 Constants:
+  - API_KEY (line 204)
+
+🏗️  Classes:
+  📋 ChapterEditor (line 8)
+     Methods:
+       - __init__(self, api_key) (line 9)
+         📝 Initialize the chapter editor with OpenAI API key.
+       - split_into_chapters(self, article) (line 13)
+         📝 Split article into chapters based on headers or natural breaks.
+Returns list of (title, content) tuples.
+       - _split_by_length(self, text, max_words) (line 50)
+         📝 Split text into chunks of approximately max_words.
+       - edit_chapter(self, title, content, instructions) (line 63)
+         📝 Edit a single chapter using OpenAI API.
+       - edit_article_by_chapters(self, article, instructions, delay) (line 95)
+         📝 Edit an entire article by processing each chapter separately.
+
+Args:
+    article: The full article text
+    instructions: Editing instructions to apply to each chapter
+    delay: Delay between API calls to avoid rate limits
+
+Returns:
+    The fully edited article
+       - save_progress(self, chapters, filename) (line 139)
+         📝 Save editing progress to a JSON file.
+       - load_progress(self, filename) (line 149)
+         📝 Load editing progress from a JSON file.
+
+⚙️  Functions:
+  - edit_long_article(article_text, editing_instructions, api_key) (line 158)
+    📝 Main function to edit a long article chapter by chapter.
+
+Args:
+    article_text: The full article to edit
+    editing_instructions: Instructions for how to edit each chapter
+    api_key: OpenAI API key
+
+Returns:
+    The fully edited article
+  - edit_article_from_file(input_file, output_file, instructions, api_key) (line 174)
+    📝 Edit an article from a file and save the result.
+
+Args:
+    input_file: Path to input article file
+    output_file: Path to save edited article
+    instructions: Editing instructions
+    api_key: OpenAI API key
+
+
+================================================================================
+FILE: src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_192503.mp3
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_192503.mp3
+Size: 1,492,940 bytes
+Extension: .mp3
+
+Type:
+  binary
+
+Size:
+  1492940
+
+
+================================================================================
+FILE: src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_192503.mp3.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_192503.mp3.json
+Size: 575 bytes
+Extension: .json
+
+Lines:
+  16
+
+Size:
+  575
+
+Type:
+  text
+
+
+================================================================================
+FILE: src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_194228.mp3
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_194228.mp3
+Size: 1,526,060 bytes
+Extension: .mp3
+
+Type:
+  binary
+
+Size:
+  1526060
+
+
+================================================================================
+FILE: src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_194228.mp3.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_194228.mp3.json
+Size: 575 bytes
+Extension: .json
+
+Lines:
+  16
+
+Size:
+  575
+
+Type:
+  text
+
+
+================================================================================
+FILE: src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_194556_chunk_1.mp3
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/audio_output/Aryna_Sabalenka_en-US-Journey-D_20250712_194556_chunk_1.mp3
+Size: 698,496 bytes
+Extension: .mp3
+
+Type:
+  binary
+
+Size:
+  698496
+
+
+================================================================================
+FILE: src/audio_pipeline.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/audio_pipeline.py
+Size: 36,791 bytes
+Extension: .py
+
+📝 File Docstring:
+Audio Generation Pipeline with Google Cloud TTS
+
+This module handles all audio-related operations:
+- Text-to-speech generation using Google Cloud TTS
+- Production effects and processing
+- Audio file management
+- Podcast package creation
+
+📦 Imports:
+  - json
+  - subprocess
+  - re
+  - os
+  - datetime.datetime
+  - pathlib.Path
+  - typing.Dict
+  - typing.List
+  - typing.Optional
+  - typing.Tuple
+  - google.cloud.texttospeech
+  - time
+  - script_formatter.PodcastScript
+  - traceback
+  - traceback
+  - time
+  - traceback
+  - shutil
+
+🏗️  Classes:
+  📋 AudioGenerator (line 23)
+     📝 Handles audio generation and processing with Google Cloud TTS
+     Methods:
+       - __init__(self, pipeline) (line 26)
+         📝 Initialize with reference to main pipeline
+       - generate_complete_podcast(self, script, voice, topic, style) (line 40)
+         📝 Generate complete podcast package with audio
+       - generate_from_script_file(self, script_filename) (line 68)
+         📝 Generate audio from a cached script file
+
+Args:
+    script_filename: Name of the script file to load
+    
+Returns:
+    Audio generation result or None if failed
+       - _load_script_from_cache(self, script_filename) (line 134)
+         📝 Load a script from the cache directory
+
+Args:
+    script_filename: Name of the script file
+    
+Returns:
+    Script data dict or None if not found
+       - _generate_audio_gcp(self, script, voice) (line 181)
+         📝 Generate audio using Google Cloud TTS with fallback strategies
+       - _generate_chunked_audio_conservative(self, script_text, voice, script, production_timeline) (line 285)
+         📝 Generate audio in very small chunks for maximum reliability
+       - _get_voice_config(self, voice_name) (line 416)
+         📝 Get voice configuration for Google Cloud TTS
+       - _synthesize_speech_gcp(self, text, voice_config) (line 479)
+         📝 Synthesize speech using Google Cloud TTS with retry logic
+       - _combine_audio_files(self, audio_files, output_path) (line 532)
+         📝 Combine multiple audio files using ffmpeg or fallback method
+       - _combine_with_ffmpeg(self, audio_files, output_path) (line 551)
+         📝 Combine audio files using ffmpeg
+       - _combine_with_fallback(self, audio_files, output_path) (line 608)
+         📝 Combine audio files using simple binary concatenation (fallback)
+       - _process_script_with_production_notes(self, script_text) (line 633)
+         📝 Process script to extract production notes and create audio timeline
+       - _apply_production_effects(self, raw_audio_path, output_path, production_timeline) (line 709)
+         📝 Apply production effects to audio based on timeline
+       - _build_audio_filter_chain(self, production_timeline) (line 748)
+         📝 Build ffmpeg audio filter chain based on production timeline
+       - _create_podcast_package(self, script, audio_result, style, voice, topic) (line 775)
+         📝 Create complete podcast package with metadata
+       - list_podcasts(self) (line 804)
+         📝 List all created podcasts
+       - get_available_voices(self) (line 831)
+         📝 Get available Google Cloud TTS voices organized by quality
+
+
+================================================================================
+FILE: src/config/api_keys.env
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/config/api_keys.env
+Size: 619 bytes
+Extension: .env
+
+Lines:
+  17
+
+Size:
+  619
+
+Type:
+  text
+
+
+================================================================================
+FILE: src/config/google-tts-credentials.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/config/google-tts-credentials.json
+Size: 2,377 bytes
+Extension: .json
+
+Lines:
+  13
+
+Size:
+  2377
+
+Type:
+  text
+
+
+================================================================================
+FILE: src/content_fetcher.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/content_fetcher.py
+Size: 66,198 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'BinOp' is not iterable
+
+================================================================================
+FILE: src/content_pipeline.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/content_pipeline.py
+Size: 17,854 bytes
+Extension: .py
+
+📝 File Docstring:
+Content Processing Pipeline
+
+This module handles all content-related operations:
+- Fetching and filtering articles
+- Script generation with chapter editing
+- Content length management
+
+📦 Imports:
+  - time
+  - copy
+  - datetime.datetime
+  - typing.List
+  - typing.Optional
+  - script_formatter.PodcastScript
+
+🏗️  Classes:
+  📋 ContentProcessor (line 17)
+     📝 Handles content fetching, processing, and script generation
+     Methods:
+       - __init__(self, pipeline) (line 20)
+         📝 Initialize with reference to main pipeline
+       - _should_use_chapter_editing(self, article, target_duration) (line 27)
+         📝 Determine if an article should use chapter-by-chapter editing
+       - _generate_script_with_chapter_editor(self, article, style, custom_instructions) (line 44)
+         📝 Generate script using chapter-by-chapter editing for long articles
+       - fetch_and_generate_trending(self, count, style) (line 151)
+         📝 Fetch trending articles and generate scripts
+       - fetch_and_generate_featured(self, count, style) (line 236)
+         📝 Fetch featured articles and generate scripts
+       - generate_single_topic(self, topic, style, custom_instructions, target_duration) (line 273)
+         📝 Generate script for a specific topic
+
+  📋 ChapterScript (line 123)
+     Methods:
+       - __init__(self, title, script, style, source_article, word_count, estimated_duration) (line 124)
+
+
+================================================================================
+FILE: src/create_podcast.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/create_podcast.py
+Size: 27,530 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Subscript' is not iterable
+
+================================================================================
+FILE: src/interactive_menus.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/interactive_menus.py
+Size: 33,908 bytes
+Extension: .py
+
+📝 File Docstring:
+Interactive Menu System - Fixed
+This module handles all user interaction:
+- Main menu navigation
+- User input and choice handling
+- Interactive workflows
+
+📦 Imports:
+  - sys
+  - pathlib.Path
+  - typing.Optional
+  - traceback
+
+🏗️  Classes:
+  📋 InteractiveMenus (line 12)
+     📝 Handles all interactive menu operations
+     Methods:
+       - __init__(self, pipeline) (line 15)
+         📝 Initialize with reference to main pipeline
+       - run_main_menu(self) (line 23)
+         📝 Run interactive menu for pipeline operations
+       - _interactive_fetch_only(self) (line 73)
+         📝 Interactive article fetching without script generation
+       - _fetch_trending_only(self) (line 92)
+         📝 Fetch trending articles without generating scripts
+       - _fetch_featured_only(self) (line 126)
+         📝 Fetch featured articles without generating scripts
+       - _fetch_specific_only(self) (line 160)
+         📝 Fetch specific topic without generating script
+       - _interactive_article_to_script(self) (line 189)
+         📝 Interactive script generation from any article
+       - _script_from_cached_article(self) (line 205)
+         📝 Create script from cached article
+       - _script_from_new_article(self) (line 240)
+         📝 Create script from newly fetched article
+       - _generate_script_from_article(self, article) (line 256)
+         📝 Common method to generate script from an article object
+       - _interactive_complete_podcast(self) (line 390)
+         📝 Interactive complete podcast generation
+       - _interactive_cached_article_to_script(self) (line 432)
+         📝 Interactive script generation from cached articles
+       - _interactive_script_to_audio(self) (line 436)
+         📝 Interactive audio generation from existing scripts - FIXED
+       - _interactive_post_production(self) (line 511)
+         📝 Interactive post-production enhancement
+       - _show_cached_scripts(self) (line 576)
+         📝 Display cached scripts
+       - _show_podcasts(self) (line 594)
+         📝 Display generated podcasts - FIXED
+       - _show_styles(self) (line 621)
+         📝 Display available styles with descriptions
+       - _clear_cache(self) (line 635)
+         📝 Interactive cache clearing
+       - _clear_script_cache(self) (line 715)
+         📝 Manually clear script cache since the method doesn't exist in PodcastScriptFormatter
+       - _clear_audio_cache(self) (line 737)
+         📝 Manually clear audio cache if the method doesn't exist
+       - _display_processing_results(self, results, result_type) (line 765)
+         📝 Display results from processing multiple articles
+       - get_user_confirmation(self, message, default) (line 785)
+         📝 Get user confirmation with default option
+       - get_user_choice(self, options, prompt) (line 795)
+         📝 Get user choice from a list of options
+
+
+================================================================================
+FILE: src/main.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/main.py
+Size: 4,598 bytes
+Extension: .py
+
+📝 File Docstring:
+Wikipedia to Podcast Pipeline - Main Entry Point
+
+This script orchestrates the entire pipeline:
+1. Fetches Wikipedia content (trending, featured, or specific topics)
+2. Generates podcast scripts in various styles
+3. Provides interactive menu for different operations
+4. Manages the entire workflow from content to scripts
+
+Usage:
+    python main.py                    # Interactive mode
+    python main.py --trending 5       # Generate 5 trending articles
+    python main.py --topic "AI"       # Generate script for specific topic
+    python main.py --featured 3       # Generate 3 featured articles
+
+📦 Imports:
+  - argparse
+  - sys
+  - pathlib.Path
+  - pipeline.PodcastPipeline
+  - traceback
+
+⚙️  Functions:
+  - parse_arguments() (line 33)
+    📝 Parse command line arguments
+  - run_command_line_mode(pipeline, args) (line 59)
+    📝 Execute command line operations
+  - run_interactive_mode(pipeline) (line 80)
+    📝 Run the interactive menu system
+  - main() (line 86)
+    📝 Main entry point
+
+
+================================================================================
+FILE: src/pipeline.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/pipeline.py
+Size: 8,583 bytes
+Extension: .py
+
+📝 File Docstring:
+Core Pipeline Class - Orchestrates all components
+
+This module contains the main PodcastPipeline class that coordinates
+between content fetching, script generation, audio creation, and user interaction.
+
+📦 Imports:
+  - os
+  - pathlib.Path
+  - typing.List
+  - typing.Dict
+  - typing.Optional
+  - dotenv.load_dotenv
+  - content_fetcher.WikipediaContentFetcher
+  - content_fetcher.WikipediaArticle
+  - script_formatter.PodcastScriptFormatter
+  - script_formatter.PodcastScript
+  - article_editor.ChapterEditor
+  - openai.OpenAI
+  - content_pipeline.ContentProcessor
+  - audio_pipeline.AudioGenerator
+  - interactive_menus.InteractiveMenus
+
+🏗️  Classes:
+  📋 PodcastPipeline (line 27)
+     📝 Main pipeline orchestrator that coordinates all components
+     Methods:
+       - __init__(self) (line 30)
+         📝 Initialize the pipeline components
+       - show_status(self) (line 77)
+         📝 Show current pipeline status and cached content
+       - fetch_and_generate_trending(self, count, style) (line 105)
+         📝 Fetch trending articles and generate scripts
+       - fetch_and_generate_featured(self, count, style) (line 109)
+         📝 Fetch featured articles and generate scripts
+       - generate_single_topic(self, topic, style, custom_instructions, target_duration) (line 113)
+         📝 Generate script for a specific topic
+       - generate_complete_podcast(self, topic, style, voice, custom_instructions, audio_enabled, target_duration) (line 121)
+         📝 Generate complete podcast: content → script → audio
+       - list_podcasts(self) (line 140)
+         📝 List all created podcasts
+       - interactive_mode(self) (line 147)
+         📝 Run interactive menu for pipeline operations
+       - _make_safe_filename(self, title) (line 152)
+         📝 Convert title to safe filename
+       - _choose_style(self) (line 157)
+         📝 Interactive style selection
+       - _choose_duration(self) (line 177)
+         📝 Interactive duration selection
+
+
+================================================================================
+FILE: src/podcast_post_production.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/podcast_post_production.py
+Size: 22,297 bytes
+Extension: .py
+
+📝 File Docstring:
+Podcast Post-Production System
+
+This module adds professional finishing touches to generated podcasts:
+- Custom intro/outro music
+- Jingles and sound effects
+- Audio mixing and mastering
+- Background music layers
+- Professional podcast formatting
+
+Features:
+- Music library management
+- Custom intro/outro creation
+- Multi-track audio mixing
+- Volume leveling and mastering
+- Batch post-production processing
+
+📦 Imports:
+  - os
+  - json
+  - subprocess
+  - tempfile
+  - pathlib.Path
+  - datetime.datetime
+  - typing.Dict
+  - typing.List
+  - typing.Optional
+  - typing.Tuple
+  - dataclasses.dataclass
+  - requests
+  - dotenv.load_dotenv
+  - openai.OpenAI
+
+🏗️  Classes:
+  📋 AudioTrack (line 32)
+     📝 Represents an audio track for mixing
+
+  📋 PodcastTemplate (line 44)
+     📝 Template for podcast post-production
+
+  📋 PodcastPostProduction (line 58)
+     📝 Advanced post-production system for podcasts
+     Methods:
+       - __init__(self, assets_dir) (line 61)
+         📝 Initialize post-production system
+       - enhance_podcast(self, input_audio, template_name, custom_intro, custom_outro, background_music, output_name) (line 87)
+         📝 Apply professional post-production to a podcast
+
+Args:
+    input_audio: Path to the main podcast audio
+    template_name: Post-production template to use
+    custom_intro: Custom intro music file
+    custom_outro: Custom outro music file  
+    background_music: Background music file
+    output_name: Custom output filename
+    
+Returns:
+    Path to enhanced podcast file
+       - create_custom_intro(self, title, host_name, voice, music_file) (line 153)
+         📝 Create a custom intro for the podcast series
+
+Args:
+    title: Podcast series title
+    host_name: Host name to announce
+    voice: TTS voice for intro
+    music_file: Background music file
+    
+Returns:
+    Path to created intro file
+       - download_free_music(self, music_type) (line 232)
+         📝 Download free music from various sources for podcast use
+
+Args:
+    music_type: Type of music ('intro', 'outro', 'background', 'jingle')
+    
+Returns:
+    List of downloaded music file paths
+       - list_available_assets(self) (line 299)
+         📝 List all available audio assets
+       - create_podcast_series_package(self, series_name, episodes, template_name) (line 323)
+         📝 Create a complete podcast series with consistent branding
+
+Args:
+    series_name: Name of the podcast series
+    episodes: List of episode audio files
+    template_name: Template to apply to all episodes
+    
+Returns:
+    Path to series package directory
+       - _create_default_templates(self) (line 392)
+         📝 Create default post-production templates
+       - _load_template(self, template_name) (line 439)
+         📝 Load a post-production template
+       - _build_audio_timeline(self, main_audio, template, custom_intro, custom_outro, background_music) (line 453)
+         📝 Build timeline of audio tracks for mixing
+       - _mix_audio_tracks(self, timeline, output_path) (line 516)
+         📝 Mix multiple audio tracks using ffmpeg
+       - _estimate_audio_duration(self, audio_file) (line 549)
+         📝 Estimate audio file duration
+       - _check_ffmpeg(self) (line 565)
+         📝 Check if ffmpeg is available
+
+⚙️  Functions:
+  - example_usage() (line 576)
+    📝 Example of how to use the post-production system
+
+
+================================================================================
+FILE: src/script_formatter.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/script_formatter.py
+Size: 47,234 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Call' is not iterable
+
+================================================================================
+FILE: src/tts_processor.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/tts_processor.py
+Size: 10,503 bytes
+Extension: .py
+
+📝 File Docstring:
+TTS Processing Module
+Handles enhanced text-to-speech processing with SSML support
+
+📦 Imports:
+  - re
+  - typing.Dict
+  - typing.List
+  - typing.Tuple
+  - google.cloud.texttospeech
+
+🔢 Constants:
+  - TTS_ENHANCEMENT_INSTRUCTIONS (line 209)
+
+🏗️  Classes:
+  📋 SSMLProcessor (line 10)
+     📝 Processes TTS instructions and converts them to SSML or audio cues
+     Methods:
+       - __init__(self) (line 13)
+       - process_script_for_tts(self, script_text, use_ssml) (line 64)
+         📝 Process script text for optimal TTS output
+
+Args:
+    script_text: Raw script text with TTS instructions
+    use_ssml: Whether to use SSML (Google Cloud supports this)
+    
+Returns:
+    Processed text ready for TTS
+       - _fix_pronunciations(self, text) (line 95)
+         📝 Apply pronunciation fixes
+       - _convert_numbers(self, text) (line 101)
+         📝 Convert years and numbers to words
+       - _convert_to_ssml(self, text) (line 155)
+         📝 Convert TTS instructions to SSML
+       - _convert_to_pauses(self, text) (line 184)
+         📝 Convert TTS instructions to natural pauses (for non-SSML TTS)
+
+⚙️  Functions:
+  - replace_year(match) (line 104)
+
+
+================================================================================
+FILE: test_google_tts.mp3
+================================================================================
+Path: /Users/itamar/projects/wikipedia/test_google_tts.mp3
+Size: 14,016 bytes
+Extension: .mp3
+
+Type:
+  binary
+
+Size:
+  14016
+
+
+================================================================================
+FILE: test_google_tts.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/test_google_tts.py
+Size: 5,150 bytes
+Extension: .py
+
+📝 File Docstring:
+Test Google Cloud TTS setup
+
+📦 Imports:
+  - os
+  - dotenv.load_dotenv
+  - google.cloud.texttospeech
+
+
+================================================================================
+FILE: tests/__init__.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/tests/__init__.py
+Size: 1,888 bytes
+Extension: .py
+
+📝 File Docstring:
+Test Suite for Wikipedia Podcast Pipeline
+Contains unit tests, integration tests, and test utilities
+
+📦 Imports:
+  - sys
+  - os
+  - pathlib.Path
+
+🔢 Constants:
+  - TEST_CONFIG (line 16)
+  - MOCK_ARTICLE_DATA (line 24)
+  - MOCK_SCRIPT_DATA (line 38)
+
+⚙️  Functions:
+  - get_test_data_path() (line 54)
+    📝 Get path to test data directory
+  - ensure_test_data_dir() (line 58)
+    📝 Ensure test data directory exists
+
+
+================================================================================
+FILE: tests/test_content_fetcher.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/tests/test_content_fetcher.py
+Size: 14,606 bytes
+Extension: .py
+
+📝 File Docstring:
+Test Suite for Content Fetcher
+Tests Wikipedia content fetching functionality
+
+📦 Imports:
+  - unittest
+  - tempfile
+  - shutil
+  - os
+  - json
+  - pathlib.Path
+  - unittest.mock.Mock
+  - unittest.mock.patch
+  - unittest.mock.MagicMock
+  - sys
+  - content_fetcher.WikipediaContentFetcher
+  - content_fetcher.WikipediaArticle
+  - content_fetcher.ArticleSuggestion
+
+🏗️  Classes:
+  📋 TestWikipediaArticle (line 25)
+     Inherits from: unittest.TestCase
+     📝 Test WikipediaArticle dataclass
+     Methods:
+       - test_article_creation(self) (line 28)
+         📝 Test creating a WikipediaArticle instance
+
+  📋 TestArticleSuggestion (line 49)
+     Inherits from: unittest.TestCase
+     📝 Test ArticleSuggestion dataclass
+     Methods:
+       - test_suggestion_creation(self) (line 52)
+         📝 Test creating an ArticleSuggestion instance
+
+  📋 TestWikipediaContentFetcher (line 66)
+     Inherits from: unittest.TestCase
+     📝 Test WikipediaContentFetcher class
+     Methods:
+       - setUp(self) (line 69)
+         📝 Set up test fixtures
+       - tearDown(self) (line 90)
+         📝 Clean up test fixtures
+       - test_fetcher_initialization(self) (line 94)
+         📝 Test fetcher initializes correctly
+       - test_make_safe_filename(self) (line 100)
+         📝 Test filename sanitization
+       - test_get_page_info_success(self, mock_get) (line 119)
+         📝 Test successful page info retrieval
+       - test_get_page_info_not_found(self, mock_get) (line 143)
+         📝 Test page info when page doesn't exist
+       - test_calculate_similarity(self) (line 162)
+         📝 Test similarity calculation
+       - test_deduplicate_suggestions(self) (line 179)
+         📝 Test suggestion deduplication
+       - test_rank_suggestions(self) (line 194)
+         📝 Test suggestion ranking
+       - test_estimate_podcast_duration(self) (line 209)
+         📝 Test podcast duration estimation
+       - test_get_trending_articles(self, mock_get) (line 225)
+         📝 Test trending articles retrieval
+       - test_control_content_length(self) (line 252)
+         📝 Test content length control
+       - test_save_and_load_cache(self) (line 265)
+         📝 Test article caching functionality
+       - test_cache_stats(self) (line 285)
+         📝 Test cache statistics
+       - test_list_cached_articles(self) (line 298)
+         📝 Test listing cached articles
+       - test_smart_fetch_with_suggestions(self, mock_get) (line 321)
+         📝 Test smart fetch with suggestion flow
+
+  📋 TestIntegration (line 347)
+     Inherits from: unittest.TestCase
+     📝 Integration tests for content fetcher
+     Methods:
+       - setUp(self) (line 350)
+         📝 Set up integration test fixtures
+       - tearDown(self) (line 355)
+         📝 Clean up integration test fixtures
+       - test_real_wikipedia_fetch(self) (line 360)
+         📝 Test actual Wikipedia API call (requires internet)
+
+
+================================================================================
+FILE: tests/test_pipeline.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/tests/test_pipeline.py
+Size: 24,473 bytes
+Extension: .py
+
+📝 File Docstring:
+Test Suite for Pipeline
+Tests the main pipeline orchestration functionality
+
+📦 Imports:
+  - unittest
+  - tempfile
+  - shutil
+  - os
+  - sys
+  - unittest.mock.Mock
+  - unittest.mock.patch
+  - unittest.mock.MagicMock
+  - pathlib.Path
+  - pipeline.PodcastPipeline
+  - content_fetcher.WikipediaArticle
+  - script_formatter.PodcastScript
+  - time
+
+🏗️  Classes:
+  📋 TestPodcastPipeline (line 22)
+     Inherits from: unittest.TestCase
+     📝 Test PodcastPipeline class
+     Methods:
+       - setUp(self) (line 25)
+         📝 Set up test fixtures
+       - tearDown(self) (line 86)
+         📝 Clean up test fixtures
+       - test_pipeline_initialization(self) (line 91)
+         📝 Test pipeline initializes correctly
+       - test_show_status(self) (line 102)
+         📝 Test pipeline status display
+       - test_interactive_mode(self) (line 121)
+         📝 Test entering interactive mode
+       - test_fetch_and_generate_trending_success(self) (line 128)
+         📝 Test successful trending articles processing
+       - test_fetch_and_generate_trending_empty(self) (line 154)
+         📝 Test trending articles when no articles available
+       - test_fetch_and_generate_featured_success(self) (line 164)
+         📝 Test successful featured articles processing
+       - test_generate_single_topic_success(self) (line 181)
+         📝 Test successful single topic processing
+       - test_generate_single_topic_failure(self) (line 198)
+         📝 Test single topic processing failure
+       - test_create_complete_podcast_success(self) (line 206)
+         📝 Test complete podcast creation (topic to audio)
+       - test_create_complete_podcast_script_failure(self) (line 238)
+         📝 Test complete podcast creation when script generation fails
+       - test_create_complete_podcast_audio_failure(self) (line 250)
+         📝 Test complete podcast creation when audio generation fails
+       - test_get_pipeline_stats(self) (line 267)
+         📝 Test getting pipeline statistics
+       - test_clear_all_caches(self) (line 292)
+         📝 Test clearing all pipeline caches
+       - test_error_handling_in_status(self) (line 308)
+         📝 Test error handling in status display
+       - test_component_initialization_failure(self) (line 319)
+         📝 Test handling of component initialization failures
+       - test_custom_cache_directory(self) (line 326)
+         📝 Test pipeline with custom cache directory
+
+  📋 TestPipelineIntegration (line 343)
+     Inherits from: unittest.TestCase
+     📝 Integration tests for pipeline components working together
+     Methods:
+       - setUp(self) (line 346)
+         📝 Set up integration test fixtures
+       - tearDown(self) (line 356)
+         📝 Clean up integration test fixtures
+       - test_pipeline_component_interaction(self, mock_processor_class, mock_formatter_class, mock_fetcher_class) (line 364)
+         📝 Test that pipeline components interact correctly
+       - test_pipeline_data_flow(self) (line 386)
+         📝 Test data flow through pipeline components
+
+  📋 TestPipelineErrorScenarios (line 442)
+     Inherits from: unittest.TestCase
+     📝 Test error scenarios and edge cases in pipeline
+     Methods:
+       - setUp(self) (line 445)
+         📝 Set up error scenario test fixtures
+       - tearDown(self) (line 454)
+         📝 Clean up error scenario test fixtures
+       - test_missing_api_key_handling(self) (line 459)
+         📝 Test pipeline behavior when API key is missing
+       - test_network_error_handling(self) (line 466)
+         📝 Test pipeline behavior during network errors
+       - test_partial_component_failure(self) (line 490)
+         📝 Test pipeline when some components fail but others work
+       - test_invalid_cache_directory(self) (line 512)
+         📝 Test pipeline with invalid cache directory
+
+  📋 TestPipelinePerformance (line 525)
+     Inherits from: unittest.TestCase
+     📝 Test pipeline performance characteristics
+     Methods:
+       - setUp(self) (line 528)
+         📝 Set up performance test fixtures
+       - tearDown(self) (line 537)
+         📝 Clean up performance test fixtures
+       - test_pipeline_initialization_time(self) (line 542)
+         📝 Test that pipeline initializes in reasonable time
+       - test_memory_usage_patterns(self) (line 568)
+         📝 Test that pipeline doesn't hold excessive references
+
+
+================================================================================
+FILE: tests/test_script_formatter.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/tests/test_script_formatter.py
+Size: 20,710 bytes
+Extension: .py
+
+📝 File Docstring:
+Test Suite for Script Formatter
+Tests podcast script generation functionality
+
+📦 Imports:
+  - unittest
+  - tempfile
+  - shutil
+  - os
+  - json
+  - pathlib.Path
+  - unittest.mock.Mock
+  - unittest.mock.patch
+  - unittest.mock.MagicMock
+  - sys
+  - script_formatter.PodcastScriptFormatter
+  - script_formatter.PodcastScript
+  - script_formatter.PodcastStyles
+  - content_fetcher.WikipediaArticle
+
+🏗️  Classes:
+  📋 TestPodcastScript (line 26)
+     Inherits from: unittest.TestCase
+     📝 Test PodcastScript dataclass
+     Methods:
+       - test_script_creation(self) (line 29)
+         📝 Test creating a PodcastScript instance
+
+  📋 TestPodcastStyles (line 50)
+     Inherits from: unittest.TestCase
+     📝 Test PodcastStyles configuration
+     Methods:
+       - test_styles_exist(self) (line 53)
+         📝 Test that all expected styles are defined
+       - test_style_structure(self) (line 69)
+         📝 Test that each style has required fields
+       - test_prompt_template_formatting(self) (line 82)
+         📝 Test that prompt templates can be formatted with topic
+
+  📋 TestPodcastScriptFormatter (line 96)
+     Inherits from: unittest.TestCase
+     📝 Test PodcastScriptFormatter class
+     Methods:
+       - setUp(self) (line 99)
+         📝 Set up test fixtures
+       - tearDown(self) (line 130)
+         📝 Clean up test fixtures
+       - test_formatter_initialization(self) (line 135)
+         📝 Test formatter initializes correctly
+       - test_initialization_without_api_key(self) (line 145)
+         📝 Test initialization fails without API key
+       - test_invalid_api_key_format(self) (line 153)
+         📝 Test initialization fails with invalid API key format
+       - test_get_available_styles(self) (line 160)
+         📝 Test getting available styles
+       - test_prepare_content(self) (line 174)
+         📝 Test content preparation for script generation
+       - test_prepare_content_long_article(self) (line 184)
+         📝 Test content preparation with very long article
+       - test_build_prompt(self) (line 198)
+         📝 Test prompt building for OpenAI
+       - test_generate_with_openai_success(self, mock_openai_class) (line 216)
+         📝 Test successful OpenAI generation
+       - test_generate_with_openai_failure(self, mock_openai_class) (line 235)
+         📝 Test OpenAI generation failure handling
+       - test_parse_generated_script(self) (line 247)
+         📝 Test parsing generated script content
+       - test_estimate_duration(self) (line 269)
+         📝 Test duration estimation
+       - test_save_script_to_cache(self) (line 279)
+         📝 Test saving script to cache
+       - test_format_article_to_script_success(self, mock_openai_class) (line 309)
+         📝 Test complete article to script conversion
+       - test_format_article_invalid_style(self) (line 331)
+         📝 Test error handling for invalid style
+       - test_list_cached_scripts(self) (line 341)
+         📝 Test listing cached scripts
+       - test_load_cached_script(self) (line 382)
+         📝 Test loading cached script
+       - test_batch_generate_scripts(self, mock_openai_class) (line 412)
+         📝 Test batch script generation
+       - test_api_connection_test(self, mock_openai_class) (line 437)
+         📝 Test API connection testing functionality
+       - test_api_connection_test_failure(self, mock_openai_class) (line 454)
+         📝 Test API connection test failure handling
+
+  📋 TestEdgeCases (line 465)
+     Inherits from: unittest.TestCase
+     📝 Test edge cases and error conditions
+     Methods:
+       - setUp(self) (line 468)
+         📝 Set up edge case test fixtures
+       - tearDown(self) (line 478)
+         📝 Clean up edge case test fixtures
+       - test_empty_article_content(self) (line 482)
+         📝 Test handling of empty article content
+       - test_very_long_title(self) (line 504)
+         📝 Test handling of very long article titles
+       - test_special_characters_in_filename(self) (line 527)
+         📝 Test safe filename generation with special characters
+
+
+================================================================================
+FILE: tests/test_simple.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/tests/test_simple.py
+Size: 4,622 bytes
+Extension: .py
+
+📝 File Docstring:
+Simple Working Test
+Tests basic functionality without complex imports
+
+📦 Imports:
+  - unittest
+  - tempfile
+  - shutil
+  - os
+  - sys
+  - pathlib.Path
+  - unittest.mock.Mock
+  - unittest.mock.patch
+  - content_fetcher
+  - script_formatter
+  - pipeline
+  - content_fetcher.WikipediaContentFetcher
+  - content_fetcher.WikipediaContentFetcher
+  - script_formatter.PodcastScriptFormatter
+  - script_formatter.PodcastScriptFormatter
+
+🏗️  Classes:
+  📋 TestBasicImports (line 18)
+     Inherits from: unittest.TestCase
+     📝 Test that we can import our modules
+     Methods:
+       - test_import_content_fetcher(self) (line 21)
+         📝 Test importing content_fetcher module
+       - test_import_script_formatter(self) (line 29)
+         📝 Test importing script_formatter module
+       - test_import_pipeline(self) (line 37)
+         📝 Test importing pipeline module
+
+  📋 TestContentFetcherBasic (line 45)
+     Inherits from: unittest.TestCase
+     📝 Basic content fetcher tests
+     Methods:
+       - setUp(self) (line 48)
+         📝 Set up test fixtures
+       - tearDown(self) (line 52)
+         📝 Clean up test fixtures
+       - test_safe_filename_basic(self) (line 56)
+         📝 Test basic safe filename creation
+       - test_fetcher_initialization(self) (line 73)
+         📝 Test fetcher can be initialized
+
+  📋 TestScriptFormatterBasic (line 85)
+     Inherits from: unittest.TestCase
+     📝 Basic script formatter tests
+     Methods:
+       - setUp(self) (line 88)
+         📝 Set up test fixtures
+       - tearDown(self) (line 98)
+         📝 Clean up test fixtures
+       - test_formatter_with_api_key(self) (line 103)
+         📝 Test formatter initialization with API key
+       - test_get_available_styles(self) (line 119)
+         📝 Test getting available styles
+
+
+================================================================================
+FILE: tests/test_utils.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/tests/test_utils.py
+Size: 12,243 bytes
+Extension: .py
+
+📝 File Docstring:
+Test Utilities and Helper Functions
+Common utilities used across test files
+
+📦 Imports:
+  - unittest
+  - tempfile
+  - shutil
+  - json
+  - os
+  - pathlib.Path
+  - unittest.mock.Mock
+  - unittest.mock.patch
+  - dataclasses.asdict
+  - .TEST_CONFIG
+  - .MOCK_ARTICLE_DATA
+  - .MOCK_SCRIPT_DATA
+  - sys
+  - content_fetcher.WikipediaArticle
+  - script_formatter.PodcastScript
+  - requests
+  - unittest
+  - unittest
+
+🏗️  Classes:
+  📋 BaseTestCase (line 26)
+     Inherits from: unittest.TestCase
+     📝 Base test case with common setup and utilities
+     Methods:
+       - setUp(self) (line 29)
+         📝 Set up common test fixtures
+       - tearDown(self) (line 39)
+         📝 Clean up common test fixtures
+       - create_mock_article(self) (line 45)
+         📝 Create a mock WikipediaArticle with optional overrides
+       - create_mock_script(self) (line 50)
+         📝 Create a mock PodcastScript with optional overrides
+       - save_test_article(self, article, filename) (line 55)
+         📝 Save a test article to temporary directory
+       - save_test_script(self, script, style_dir, filename) (line 64)
+         📝 Save a test script to temporary directory
+       - assertFileExists(self, file_path) (line 77)
+         📝 Assert that a file exists
+       - assertFileNotExists(self, file_path) (line 81)
+         📝 Assert that a file does not exist
+       - assertDirExists(self, dir_path) (line 85)
+         📝 Assert that a directory exists
+       - assertJSONFileContains(self, file_path, expected_data) (line 89)
+         📝 Assert that a JSON file contains expected data
+
+  📋 MockAPIResponses (line 101)
+     📝 Mock API responses for testing
+     Methods:
+       - wikipedia_page_info(title) (line 105)
+         📝 Mock Wikipedia page info response
+       - wikipedia_page_content(title) (line 120)
+         📝 Mock Wikipedia page content response
+       - wikipedia_search_results(query) (line 133)
+         📝 Mock Wikipedia search results
+       - wikipedia_trending() (line 151)
+         📝 Mock Wikipedia trending articles response
+       - openai_chat_completion(content) (line 164)
+         📝 Mock OpenAI chat completion response
+
+  📋 TestDataGenerator (line 171)
+     📝 Generates test data for various scenarios
+     Methods:
+       - create_long_article(word_count) (line 175)
+         📝 Create an article with specific word count
+       - create_article_with_special_chars() (line 198)
+         📝 Create an article with special characters in title
+       - create_multiple_articles(count) (line 215)
+         📝 Create multiple test articles
+
+  📋 APITestMixin (line 236)
+     📝 Mixin for testing API interactions
+     Methods:
+       - setUp_api_mocks(self) (line 239)
+         📝 Set up common API mocks
+       - tearDown_api_mocks(self) (line 253)
+         📝 Clean up API mocks
+       - setup_wikipedia_success_response(self, title) (line 258)
+         📝 Set up successful Wikipedia API response
+       - setup_wikipedia_not_found_response(self) (line 265)
+         📝 Set up Wikipedia API not found response
+       - setup_openai_success_response(self, content) (line 277)
+         📝 Set up successful OpenAI API response
+
+⚙️  Functions:
+  - skip_if_no_internet() (line 282)
+    📝 Decorator to skip tests if no internet connection
+  - skip_if_no_integration_flag() (line 296)
+    📝 Decorator to skip tests if integration flag not set
+  - assert_valid_wikipedia_article(test_case, article) (line 308)
+    📝 Assert that an object is a valid WikipediaArticle
+  - assert_valid_podcast_script(test_case, script) (line 319)
+    📝 Assert that an object is a valid PodcastScript
+  - decorator(test_func) (line 284)
+  - decorator(test_func) (line 298)
+  - wrapper() (line 285)
+  - wrapper() (line 299)
+
+
+================================================================================
+FILE: tests/test_utils_simple.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/tests/test_utils_simple.py
+Size: 756 bytes
+Extension: .py
+
+📝 File Docstring:
+Simple Test Utilities
+
+📦 Imports:
+  - unittest
+  - tempfile
+  - shutil
+  - os
+  - pathlib.Path
+  - unittest.mock.patch
+
+🏗️  Classes:
+  📋 SimpleBaseTestCase (line 13)
+     Inherits from: unittest.TestCase
+     📝 Simplified base test case
+     Methods:
+       - setUp(self) (line 16)
+         📝 Set up test fixtures
+       - tearDown(self) (line 25)
+         📝 Clean up test fixtures
+
+
