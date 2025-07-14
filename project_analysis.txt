@@ -3,16 +3,16 @@ PROJECT CODE ANALYSIS REPORT
 ================================================================================
 
 Project Path: /Users/itamar/projects/wikipedia
-Total Files: 28
+Total Files: 53
 Generated: /Users/itamar/projects/wikipedia
 
 FILE TYPES SUMMARY:
 ----------------------------------------
 .env            :    2 files
 .example        :    1 files
-.json           :    8 files
+.json           :   11 files
 .md             :    1 files
-.py             :   14 files
+.py             :   36 files
 .txt            :    2 files
 
 ================================================================================
@@ -70,6 +70,23 @@ Lines:
 
 Size:
   377
+
+Type:
+  text
+
+
+================================================================================
+FILE: processed_scripts/conversational/Apple_20250712_2143.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/processed_scripts/conversational/Apple_20250712_2143.json
+Size: 29,313 bytes
+Extension: .json
+
+Lines:
+  21
+
+Size:
+  29236
 
 Type:
   text
@@ -206,6 +223,40 @@ Type:
 
 
 ================================================================================
+FILE: raw_articles/Apple.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/Apple.json
+Size: 44,187 bytes
+Extension: .json
+
+Lines:
+  71
+
+Size:
+  44062
+
+Type:
+  text
+
+
+================================================================================
+FILE: raw_articles/Bible.json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/raw_articles/Bible.json
+Size: 89,587 bytes
+Extension: .json
+
+Lines:
+  46
+
+Size:
+  89033
+
+Type:
+  text
+
+
+================================================================================
 FILE: requirements.txt
 ================================================================================
 Path: /Users/itamar/projects/wikipedia/requirements.txt
@@ -315,23 +366,19 @@ Args:
 FILE: src/audio_pipeline.py
 ================================================================================
 Path: /Users/itamar/projects/wikipedia/src/audio_pipeline.py
-Size: 36,791 bytes
+Size: 63,313 bytes
 Extension: .py
 
 📝 File Docstring:
-Audio Generation Pipeline with Google Cloud TTS
-
-This module handles all audio-related operations:
-- Text-to-speech generation using Google Cloud TTS
-- Production effects and processing
-- Audio file management
-- Podcast package creation
+Simplified Audio Generation Pipeline
+Handles audio generation with graceful fallback when TTS not available
 
 📦 Imports:
   - json
   - subprocess
   - re
   - os
+  - time
   - datetime.datetime
   - pathlib.Path
   - typing.Dict
@@ -339,64 +386,59 @@ This module handles all audio-related operations:
   - typing.Optional
   - typing.Tuple
   - google.cloud.texttospeech
-  - time
+  - tts_processor.SSMLProcessor
   - script_formatter.PodcastScript
-  - traceback
-  - traceback
-  - time
-  - traceback
-  - shutil
+
+🔢 Constants:
+  - GOOGLE_TTS_AVAILABLE (line 904)
+  - SSML_PROCESSOR_AVAILABLE (line 911)
+  - GOOGLE_TTS_AVAILABLE (line 906)
+  - SSML_PROCESSOR_AVAILABLE (line 913)
 
 🏗️  Classes:
-  📋 AudioGenerator (line 23)
-     📝 Handles audio generation and processing with Google Cloud TTS
+  📋 AudioGenerator (line 917)
+     📝 Simplified audio generation with graceful error handling
      Methods:
-       - __init__(self, pipeline) (line 26)
+       - __init__(self, pipeline) (line 920)
          📝 Initialize with reference to main pipeline
-       - generate_complete_podcast(self, script, voice, topic, style) (line 40)
+       - is_available(self) (line 942)
+         📝 Check if audio generation is available
+       - generate_complete_podcast(self, script, voice, topic, style) (line 946)
          📝 Generate complete podcast package with audio
-       - generate_from_script_file(self, script_filename) (line 68)
+       - generate_from_script_file(self, script_filename) (line 988)
          📝 Generate audio from a cached script file
-
-Args:
-    script_filename: Name of the script file to load
-    
-Returns:
-    Audio generation result or None if failed
-       - _load_script_from_cache(self, script_filename) (line 134)
+       - _create_script_object(self, script_data) (line 1030)
+         📝 Create script object from data
+       - _load_script_from_cache(self, script_filename) (line 1051)
          📝 Load a script from the cache directory
-
-Args:
-    script_filename: Name of the script file
-    
-Returns:
-    Script data dict or None if not found
-       - _generate_audio_gcp(self, script, voice) (line 181)
-         📝 Generate audio using Google Cloud TTS with fallback strategies
-       - _generate_chunked_audio_conservative(self, script_text, voice, script, production_timeline) (line 285)
-         📝 Generate audio in very small chunks for maximum reliability
-       - _get_voice_config(self, voice_name) (line 416)
-         📝 Get voice configuration for Google Cloud TTS
-       - _synthesize_speech_gcp(self, text, voice_config) (line 479)
-         📝 Synthesize speech using Google Cloud TTS with retry logic
-       - _combine_audio_files(self, audio_files, output_path) (line 532)
-         📝 Combine multiple audio files using ffmpeg or fallback method
-       - _combine_with_ffmpeg(self, audio_files, output_path) (line 551)
-         📝 Combine audio files using ffmpeg
-       - _combine_with_fallback(self, audio_files, output_path) (line 608)
-         📝 Combine audio files using simple binary concatenation (fallback)
-       - _process_script_with_production_notes(self, script_text) (line 633)
-         📝 Process script to extract production notes and create audio timeline
-       - _apply_production_effects(self, raw_audio_path, output_path, production_timeline) (line 709)
-         📝 Apply production effects to audio based on timeline
-       - _build_audio_filter_chain(self, production_timeline) (line 748)
-         📝 Build ffmpeg audio filter chain based on production timeline
-       - _create_podcast_package(self, script, audio_result, style, voice, topic) (line 775)
-         📝 Create complete podcast package with metadata
-       - list_podcasts(self) (line 804)
+       - _generate_audio_gcp(self, script, voice) (line 1086)
+         📝 Generate audio using Google Cloud TTS with simplified approach
+       - _clean_text_for_tts(self, text) (line 1115)
+         📝 Clean text for TTS
+       - _generate_single_audio(self, text, voice, script) (line 1125)
+         📝 Generate audio for short text in one request
+       - _generate_chunked_audio(self, text, voice, script) (line 1169)
+         📝 Generate audio in chunks for long text
+       - _split_text_into_chunks(self, text, max_chars) (line 1258)
+         📝 Split text into chunks at sentence boundaries
+       - _synthesize_speech(self, text, voice_config) (line 1276)
+         📝 Synthesize speech with retry logic
+       - _get_voice_config(self, voice_name) (line 1314)
+         📝 Get voice configuration
+       - _combine_audio_files(self, audio_files, output_path) (line 1344)
+         📝 Combine audio files using ffmpeg or fallback
+       - _combine_with_ffmpeg(self, audio_files, output_path) (line 1357)
+         📝 Combine using ffmpeg
+       - _combine_with_fallback(self, audio_files, output_path) (line 1387)
+         📝 Simple binary concatenation fallback
+       - _make_safe_filename(self, title) (line 1401)
+         📝 Convert title to safe filename
+       - _create_podcast_package(self, script, audio_result, style, voice, topic) (line 1408)
+         📝 Create podcast package with metadata
+       - list_podcasts(self) (line 1436)
          📝 List all created podcasts
-       - get_available_voices(self) (line 831)
-         📝 Get available Google Cloud TTS voices organized by quality
+       - get_available_voices(self) (line 1462)
+         📝 Get available voices
 
 
 ================================================================================
@@ -417,30 +459,41 @@ Type:
 
 
 ================================================================================
-FILE: src/config/google-tts-credentials.json
+FILE: src/config_management/__init__.py
 ================================================================================
-Path: /Users/itamar/projects/wikipedia/src/config/google-tts-credentials.json
-Size: 2,377 bytes
-Extension: .json
+Path: /Users/itamar/projects/wikipedia/src/config_management/__init__.py
+Size: 376 bytes
+Extension: .py
 
-Lines:
-  13
+📦 Imports:
+  - config_manager.ConfigManager
+  - config_manager.PipelineConfig
+  - config_manager.APIConfig
+  - config_manager.ContentSourceConfig
+  - config_manager.AudioConfig
+  - config_manager.ScriptConfig
+  - config_manager.CacheConfig
+  - config_manager.get_config
+  - config_manager.get_api_config
 
-Size:
-  2377
 
-Type:
-  text
+================================================================================
+FILE: src/config_management/config_manager.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/config_management/config_manager.py
+Size: 13,426 bytes
+Extension: .py
 
+❌ Analysis Error: argument of type 'Call' is not iterable
 
 ================================================================================
 FILE: src/content_fetcher.py
 ================================================================================
 Path: /Users/itamar/projects/wikipedia/src/content_fetcher.py
-Size: 66,198 bytes
+Size: 22,289 bytes
 Extension: .py
 
-❌ Analysis Error: argument of type 'BinOp' is not iterable
+❌ Analysis Error: argument of type 'Attribute' is not iterable
 
 ================================================================================
 FILE: src/content_pipeline.py
@@ -488,6 +541,752 @@ This module handles all content-related operations:
 
 
 ================================================================================
+FILE: src/content_sources/__init__.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/content_sources/__init__.py
+Size: 378 bytes
+Extension: .py
+
+📦 Imports:
+  - manager.ContentSourceManager
+  - manager.create_content_source_manager
+  - compatibility_layer.WikipediaContentFetcher
+  - interfaces.Article
+  - interfaces.SearchCriteria
+  - interfaces.ContentLength
+
+
+================================================================================
+FILE: src/content_sources/compatibility_layer.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/content_sources/compatibility_layer.py
+Size: 22,443 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Attribute' is not iterable
+
+================================================================================
+FILE: src/content_sources/content_processors.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/content_sources/content_processors.py
+Size: 23,858 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'JoinedStr' is not iterable
+
+================================================================================
+FILE: src/content_sources/interfaces.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/content_sources/interfaces.py
+Size: 13,116 bytes
+Extension: .py
+
+📝 File Docstring:
+Content Sources - Interface Definitions
+Defines contracts for all content source operations
+
+📦 Imports:
+  - abc.ABC
+  - abc.abstractmethod
+  - typing.List
+  - typing.Dict
+  - typing.Optional
+  - typing.Tuple
+  - typing.Union
+  - dataclasses.dataclass
+  - datetime.datetime
+  - enum.Enum
+  - core.models.ProcessingResult
+
+🔢 Constants:
+  - SHORT (line 17)
+  - MEDIUM (line 18)
+  - LONG (line 19)
+  - FULL (line 20)
+
+🏗️  Classes:
+  📋 ContentLength (line 15)
+     Inherits from: Enum
+     📝 Content length options for articles
+
+  📋 ArticleMetadata (line 24)
+     📝 Metadata for an article
+
+  📋 ArticleSuggestion (line 37)
+     📝 Article suggestion with relevance scoring
+
+  📋 Article (line 48)
+     📝 Complete article data structure
+     Methods:
+       - metadata(self) (line 63)
+         📝 Get article metadata
+       - _estimate_duration(self, wpm) (line 76)
+         📝 Estimate reading duration
+
+  📋 SearchCriteria (line 87)
+     📝 Criteria for content search and filtering
+     Methods:
+       - __post_init__(self) (line 97)
+
+  📋 BatchFetchResult (line 108)
+     📝 Result of batch fetching operation
+     Methods:
+       - __post_init__(self) (line 116)
+
+  📋 ContentSource (line 120)
+     Inherits from: ABC
+     📝 Base interface for content sources
+     Methods:
+       - supports_source(self, identifier) (line 165)
+         📝 Check if this source can handle the given identifier
+
+Args:
+    identifier: Source identifier (URL, title, etc.)
+    
+Returns:
+    True if this source can handle the identifier
+
+  📋 TrendingContentSource (line 178)
+     Inherits from: ABC
+     📝 Interface for sources that can provide trending content
+
+  📋 FeaturedContentSource (line 195)
+     Inherits from: ABC
+     📝 Interface for sources that can provide featured/high-quality content
+
+  📋 CategoryContentSource (line 212)
+     Inherits from: ABC
+     📝 Interface for sources that can provide content by category
+
+  📋 HistoricalContentSource (line 240)
+     Inherits from: ABC
+     📝 Interface for sources that can provide historical content
+
+  📋 ContentProcessor (line 258)
+     Inherits from: ABC
+     📝 Interface for content processing operations
+     Methods:
+       - calculate_quality_score(self, article) (line 276)
+         📝 Calculate quality score for an article
+
+Args:
+    article: Article to score
+    
+Returns:
+    Quality score between 0.0 and 1.0
+       - estimate_duration(self, word_count, style) (line 289)
+         📝 Estimate podcast duration based on word count and style
+
+Args:
+    word_count: Number of words
+    style: Speaking style
+    
+Returns:
+    Tuple of (duration_seconds, formatted_duration)
+
+  📋 ContentValidator (line 303)
+     Inherits from: ABC
+     📝 Interface for content validation
+     Methods:
+       - validate_article(self, article, criteria) (line 307)
+         📝 Validate article meets quality and content criteria
+
+Args:
+    article: Article to validate
+    criteria: Validation criteria
+    
+Returns:
+    ProcessingResult with validated article or validation errors
+       - is_suitable_for_podcast(self, article, criteria) (line 321)
+         📝 Check if article is suitable for podcast generation
+
+Args:
+    article: Article to check
+    criteria: Suitability criteria
+    
+Returns:
+    True if suitable for podcast
+
+  📋 SuggestionProvider (line 335)
+     Inherits from: ABC
+     📝 Interface for article suggestion services
+     Methods:
+       - calculate_similarity(self, query, title) (line 367)
+         📝 Calculate similarity score between query and title
+
+Args:
+    query: Search query
+    title: Article title
+    
+Returns:
+    Similarity score between 0.0 and 1.0
+
+  📋 ContentCache (line 381)
+     Inherits from: ABC
+     📝 Interface for content caching operations
+
+  📋 InteractiveSelector (line 450)
+     Inherits from: ABC
+     📝 Interface for interactive article selection
+     Methods:
+       - display_suggestions(self, query, suggestions) (line 468)
+         📝 Display suggestions to user
+
+Args:
+    query: Original search query
+    suggestions: List of suggestions to display
+
+
+================================================================================
+FILE: src/content_sources/manager.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/content_sources/manager.py
+Size: 20,754 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'BinOp' is not iterable
+
+================================================================================
+FILE: src/content_sources/wikipedia_source.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/content_sources/wikipedia_source.py
+Size: 49,229 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Await' is not iterable
+
+================================================================================
+FILE: src/core/__init__.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/core/__init__.py
+Size: 2,249 bytes
+Extension: .py
+
+📝 File Docstring:
+Core package for the podcast generation system.
+Contains interfaces, models, and foundational components.
+
+📦 Imports:
+  - interfaces.ContentFetcher
+  - interfaces.ContentProcessor
+  - interfaces.ScriptGenerator
+  - interfaces.ScriptProcessor
+  - interfaces.AudioGenerator
+  - interfaces.AudioProcessor
+  - interfaces.CacheManager
+  - interfaces.ConfigManager
+  - interfaces.Pipeline
+  - interfaces.PipelineStep
+  - interfaces.ProcessingResult
+  - interfaces.ProcessingStatus
+  - models.Article
+  - models.PodcastScript
+  - models.ScriptSegment
+  - models.PodcastEpisode
+  - models.VoiceConfig
+  - models.AudioMetadata
+  - models.ContentMetadata
+  - models.ProcessingJob
+  - models.PipelineConfig
+  - models.ContentType
+  - models.ScriptStyle
+  - models.AudioFormat
+  - models.QualityLevel
+  - exceptions.PodcastGenerationError
+  - exceptions.ConfigurationError
+  - exceptions.ContentFetchError
+  - exceptions.ScriptGenerationError
+  - exceptions.AudioGenerationError
+  - exceptions.CacheError
+  - exceptions.ValidationError
+  - exceptions.APIError
+  - exceptions.ContentValidationError
+  - exceptions.ScriptProcessingError
+  - exceptions.AudioProcessingError
+  - exceptions.RateLimitError
+  - exceptions.AuthenticationError
+  - exceptions.QuotaExceededError
+  - exceptions.PipelineError
+  - exceptions.TimeoutError
+  - exceptions.DependencyError
+  - exceptions.StorageError
+  - exceptions.QualityError
+
+
+================================================================================
+FILE: src/core/exceptions.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/core/exceptions.py
+Size: 7,677 bytes
+Extension: .py
+
+📝 File Docstring:
+Custom exceptions for the podcast generation system.
+Provides specific error types for better error handling and debugging.
+
+📦 Imports:
+  - typing.Optional
+  - typing.Dict
+  - typing.Any
+
+🔢 Constants:
+  - EXCEPTION_MAP (line 176)
+
+🏗️  Classes:
+  📋 PodcastGenerationError (line 9)
+     Inherits from: Exception
+     📝 Base exception for all podcast generation errors
+     Methods:
+       - __init__(self, message, error_code, details) (line 12)
+       - __str__(self) (line 17)
+
+  📋 ConfigurationError (line 23)
+     Inherits from: PodcastGenerationError
+     📝 Raised when there's a configuration problem
+     Methods:
+       - __init__(self, message, config_key) (line 26)
+
+  📋 ContentFetchError (line 31)
+     Inherits from: PodcastGenerationError
+     📝 Raised when content fetching fails
+     Methods:
+       - __init__(self, message, source, url) (line 34)
+
+  📋 ContentValidationError (line 40)
+     Inherits from: PodcastGenerationError
+     📝 Raised when content validation fails
+     Methods:
+       - __init__(self, message, validation_type) (line 43)
+
+  📋 ScriptGenerationError (line 48)
+     Inherits from: PodcastGenerationError
+     📝 Raised when script generation fails
+     Methods:
+       - __init__(self, message, style, article_id) (line 51)
+
+  📋 ScriptProcessingError (line 57)
+     Inherits from: PodcastGenerationError
+     📝 Raised when script processing fails
+     Methods:
+       - __init__(self, message, processing_type) (line 60)
+
+  📋 AudioGenerationError (line 65)
+     Inherits from: PodcastGenerationError
+     📝 Raised when audio generation fails
+     Methods:
+       - __init__(self, message, voice, provider) (line 68)
+
+  📋 AudioProcessingError (line 74)
+     Inherits from: PodcastGenerationError
+     📝 Raised when audio processing fails
+     Methods:
+       - __init__(self, message, processing_type, audio_file) (line 77)
+
+  📋 CacheError (line 83)
+     Inherits from: PodcastGenerationError
+     📝 Raised when cache operations fail
+     Methods:
+       - __init__(self, message, cache_key, operation) (line 86)
+
+  📋 ValidationError (line 92)
+     Inherits from: PodcastGenerationError
+     📝 Raised when validation fails
+     Methods:
+       - __init__(self, message, field, value) (line 95)
+
+  📋 APIError (line 101)
+     Inherits from: PodcastGenerationError
+     📝 Raised when external API calls fail
+     Methods:
+       - __init__(self, message, api_name, status_code) (line 104)
+
+  📋 RateLimitError (line 110)
+     Inherits from: APIError
+     📝 Raised when API rate limits are exceeded
+     Methods:
+       - __init__(self, message, retry_after) (line 113)
+
+  📋 AuthenticationError (line 118)
+     Inherits from: APIError
+     📝 Raised when API authentication fails
+     Methods:
+       - __init__(self, message) (line 121)
+
+  📋 QuotaExceededError (line 125)
+     Inherits from: APIError
+     📝 Raised when API quota is exceeded
+     Methods:
+       - __init__(self, message, quota_type) (line 128)
+
+  📋 PipelineError (line 133)
+     Inherits from: PodcastGenerationError
+     📝 Raised when pipeline execution fails
+     Methods:
+       - __init__(self, message, step) (line 136)
+
+  📋 TimeoutError (line 141)
+     Inherits from: PodcastGenerationError
+     📝 Raised when operations timeout
+     Methods:
+       - __init__(self, message, timeout_duration) (line 144)
+
+  📋 DependencyError (line 149)
+     Inherits from: PodcastGenerationError
+     📝 Raised when required dependencies are missing
+     Methods:
+       - __init__(self, message, dependency) (line 152)
+
+  📋 StorageError (line 157)
+     Inherits from: PodcastGenerationError
+     📝 Raised when storage operations fail
+     Methods:
+       - __init__(self, message, path, operation) (line 160)
+
+  📋 QualityError (line 166)
+     Inherits from: PodcastGenerationError
+     📝 Raised when quality checks fail
+     Methods:
+       - __init__(self, message, quality_check, threshold) (line 169)
+
+⚙️  Functions:
+  - get_exception_class(error_code) (line 198)
+    📝 Get exception class by error code
+  - create_exception(error_code, message) (line 203)
+    📝 Create exception instance by error code
+
+
+================================================================================
+FILE: src/core/interfaces.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/core/interfaces.py
+Size: 8,204 bytes
+Extension: .py
+
+📝 File Docstring:
+Core interfaces and abstract base classes for the podcast generation system.
+These define the contracts that all implementations must follow.
+
+📦 Imports:
+  - abc.ABC
+  - abc.abstractmethod
+  - typing.Dict
+  - typing.List
+  - typing.Optional
+  - typing.Any
+  - typing.Protocol
+  - dataclasses.dataclass
+  - enum.Enum
+
+🔢 Constants:
+  - PENDING (line 14)
+  - PROCESSING (line 15)
+  - COMPLETED (line 16)
+  - FAILED (line 17)
+  - CANCELLED (line 18)
+
+🏗️  Classes:
+  📋 ProcessingStatus (line 12)
+     Inherits from: Enum
+     📝 Status of processing operations
+
+  📋 ProcessingResult (line 22)
+     📝 Standard result format for all processing operations
+     Methods:
+       - is_success(self) (line 30)
+       - is_failure(self) (line 34)
+
+  📋 ContentFetcher (line 39)
+     Inherits from: ABC
+     📝 Interface for fetching content from various sources
+     Methods:
+       - fetch_article(self, identifier) (line 43)
+         📝 Fetch a single article by identifier
+       - fetch_trending(self, count) (line 48)
+         📝 Fetch trending articles
+       - fetch_featured(self, count) (line 53)
+         📝 Fetch featured articles
+       - search_articles(self, query, limit) (line 58)
+         📝 Search for articles matching query
+
+  📋 ContentProcessor (line 63)
+     Inherits from: ABC
+     📝 Interface for processing and transforming content
+     Methods:
+       - process_article(self, article) (line 67)
+         📝 Process a single article
+       - batch_process(self, articles) (line 72)
+         📝 Process multiple articles
+
+  📋 ScriptGenerator (line 78)
+     Inherits from: ABC
+     📝 Interface for generating podcast scripts
+     Methods:
+       - generate_script(self, content, style, custom_instructions, target_duration) (line 82)
+         📝 Generate a podcast script from content
+       - get_available_styles(self) (line 91)
+         📝 Get available script styles
+
+  📋 ScriptProcessor (line 96)
+     Inherits from: ABC
+     📝 Interface for processing and enhancing scripts
+     Methods:
+       - process_for_tts(self, script) (line 100)
+         📝 Process script for text-to-speech optimization
+       - validate_script(self, script) (line 105)
+         📝 Validate script format and content
+
+  📋 AudioGenerator (line 111)
+     Inherits from: ABC
+     📝 Interface for generating audio from scripts
+     Methods:
+       - generate_audio(self, script, voice, format) (line 115)
+         📝 Generate audio from script
+       - get_available_voices(self) (line 123)
+         📝 Get available TTS voices
+
+  📋 AudioProcessor (line 128)
+     Inherits from: ABC
+     📝 Interface for post-processing audio
+     Methods:
+       - enhance_audio(self, audio_path, enhancements) (line 132)
+         📝 Apply enhancements to audio
+       - combine_audio(self, audio_files) (line 139)
+         📝 Combine multiple audio files
+
+  📋 CacheManager (line 145)
+     Inherits from: ABC
+     📝 Interface for managing cached content
+     Methods:
+       - store(self, key, data, metadata) (line 149)
+         📝 Store data in cache
+       - retrieve(self, key) (line 154)
+         📝 Retrieve data from cache
+       - list_items(self, pattern) (line 159)
+         📝 List cached items
+       - clear(self, pattern) (line 164)
+         📝 Clear cache items
+
+  📋 ConfigManager (line 170)
+     Inherits from: ABC
+     📝 Interface for managing configuration
+     Methods:
+       - get(self, key, default) (line 174)
+         📝 Get configuration value
+       - set(self, key, value) (line 179)
+         📝 Set configuration value
+       - validate_config(self) (line 184)
+         📝 Validate current configuration
+
+  📋 PipelineStep (line 190)
+     Inherits from: ABC
+     📝 Interface for individual pipeline steps
+     Methods:
+       - execute(self, input_data) (line 194)
+         📝 Execute this pipeline step
+       - can_process(self, input_data) (line 199)
+         📝 Check if this step can process the input
+
+  📋 Pipeline (line 204)
+     Inherits from: ABC
+     📝 Interface for processing pipelines
+     Methods:
+       - add_step(self, step) (line 208)
+         📝 Add a step to the pipeline
+       - execute(self, input_data) (line 213)
+         📝 Execute the entire pipeline
+
+  📋 EventListener (line 219)
+     Inherits from: Protocol
+     📝 Protocol for event listeners
+     Methods:
+       - handle_event(self, event_type, data) (line 222)
+         📝 Handle an event
+
+  📋 EventBus (line 227)
+     Inherits from: ABC
+     📝 Interface for event bus system
+     Methods:
+       - subscribe(self, event_type, listener) (line 231)
+         📝 Subscribe to events
+       - publish(self, event_type, data) (line 236)
+         📝 Publish an event
+
+  📋 ComponentFactory (line 242)
+     Inherits from: ABC
+     📝 Interface for creating system components
+     Methods:
+       - create_content_fetcher(self) (line 246)
+         📝 Create content fetcher
+       - create_script_generator(self) (line 251)
+         📝 Create script generator
+       - create_audio_generator(self) (line 256)
+         📝 Create audio generator
+
+  📋 ServiceHealth (line 262)
+     Inherits from: ABC
+     📝 Interface for service health checks
+     Methods:
+       - check_health(self) (line 266)
+         📝 Check service health
+       - get_status(self) (line 271)
+         📝 Get detailed service status
+
+  📋 QualityChecker (line 277)
+     Inherits from: ABC
+     📝 Interface for quality assessment
+     Methods:
+       - assess_content(self, content) (line 281)
+         📝 Assess content quality
+       - assess_script(self, script) (line 286)
+         📝 Assess script quality
+       - assess_audio(self, audio_path) (line 291)
+         📝 Assess audio quality
+
+  📋 MetricsCollector (line 297)
+     Inherits from: ABC
+     📝 Interface for collecting system metrics
+     Methods:
+       - record_metric(self, name, value, tags) (line 301)
+         📝 Record a metric
+       - get_metrics(self, pattern) (line 306)
+         📝 Get collected metrics
+
+
+================================================================================
+FILE: src/core/models.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/core/models.py
+Size: 14,301 bytes
+Extension: .py
+
+📝 File Docstring:
+Core domain models for the podcast generation system.
+These represent the key entities and value objects used throughout the system.
+
+📦 Imports:
+  - dataclasses.dataclass
+  - dataclasses.field
+  - typing.Dict
+  - typing.List
+  - typing.Optional
+  - typing.Any
+  - typing.Union
+  - datetime.datetime
+  - enum.Enum
+  - json
+
+🔢 Constants:
+  - WIKIPEDIA_ARTICLE (line 15)
+  - NEWS_ARTICLE (line 16)
+  - BLOG_POST (line 17)
+  - RESEARCH_PAPER (line 18)
+  - CUSTOM_TEXT (line 19)
+  - CONVERSATIONAL (line 24)
+  - EDUCATIONAL (line 25)
+  - NARRATIVE (line 26)
+  - INTERVIEW (line 27)
+  - NEWS (line 28)
+  - DOCUMENTARY (line 29)
+  - MP3 (line 34)
+  - WAV (line 35)
+  - OGG (line 36)
+  - M4A (line 37)
+  - LOW (line 42)
+  - MEDIUM (line 43)
+  - HIGH (line 44)
+  - PREMIUM (line 45)
+
+🏗️  Classes:
+  📋 ContentType (line 13)
+     Inherits from: Enum
+     📝 Types of content that can be processed
+
+  📋 ScriptStyle (line 22)
+     Inherits from: Enum
+     📝 Available script styles
+
+  📋 AudioFormat (line 32)
+     Inherits from: Enum
+     📝 Supported audio formats
+
+  📋 QualityLevel (line 40)
+     Inherits from: Enum
+     📝 Quality levels for content and processing
+
+  📋 ContentMetadata (line 49)
+     📝 Metadata about content
+     Methods:
+       - to_dict(self) (line 61)
+         📝 Convert to dictionary
+
+  📋 Article (line 77)
+     📝 Represents an article from any source
+     Methods:
+       - __post_init__(self) (line 89)
+         📝 Calculate word count if not provided
+       - to_dict(self) (line 94)
+         📝 Convert to dictionary for serialization
+       - from_dict(cls, data) (line 109)
+         📝 Create from dictionary
+
+  📋 ScriptSegment (line 126)
+     📝 Represents a segment of a podcast script
+     Methods:
+       - to_dict(self) (line 134)
+         📝 Convert to dictionary
+
+  📋 PodcastScript (line 146)
+     📝 Represents a complete podcast script
+     Methods:
+       - __post_init__(self) (line 161)
+         📝 Calculate word count if not provided
+       - intro_segment(self) (line 167)
+         📝 Get the intro segment
+       - outro_segment(self) (line 172)
+         📝 Get the outro segment
+       - main_segments(self) (line 177)
+         📝 Get all main content segments
+       - to_dict(self) (line 181)
+         📝 Convert to dictionary for serialization
+       - from_dict(cls, data) (line 199)
+         📝 Create from dictionary
+
+  📋 VoiceConfig (line 219)
+     📝 Configuration for TTS voice
+     Methods:
+       - to_dict(self) (line 228)
+         📝 Convert to dictionary
+
+  📋 AudioMetadata (line 241)
+     📝 Metadata about generated audio
+     Methods:
+       - to_dict(self) (line 251)
+         📝 Convert to dictionary
+
+  📋 PodcastEpisode (line 265)
+     📝 Represents a complete podcast episode
+     Methods:
+       - to_dict(self) (line 280)
+         📝 Convert to dictionary for serialization
+       - from_dict(cls, data) (line 298)
+         📝 Create from dictionary
+
+  📋 ProcessingJob (line 318)
+     📝 Represents a processing job in the pipeline
+     Methods:
+       - to_dict(self) (line 331)
+         📝 Convert to dictionary
+
+  📋 PipelineConfig (line 348)
+     📝 Configuration for the podcast generation pipeline
+     Methods:
+       - to_dict(self) (line 377)
+         📝 Convert to dictionary
+       - from_dict(cls, data) (line 398)
+         📝 Create from dictionary
+
+
+================================================================================
 FILE: src/create_podcast.py
 ================================================================================
 Path: /Users/itamar/projects/wikipedia/src/create_podcast.py
@@ -500,71 +1299,69 @@ Extension: .py
 FILE: src/interactive_menus.py
 ================================================================================
 Path: /Users/itamar/projects/wikipedia/src/interactive_menus.py
-Size: 33,908 bytes
+Size: 38,156 bytes
 Extension: .py
 
 📝 File Docstring:
-Interactive Menu System - Fixed
-This module handles all user interaction:
-- Main menu navigation
-- User input and choice handling
-- Interactive workflows
+Interactive Menu System - Fixed with Robust Data Handling
+This module handles all user interaction with graceful error handling
 
 📦 Imports:
   - sys
   - pathlib.Path
   - typing.Optional
   - traceback
+  - traceback
+  - traceback
+  - inspect
 
 🏗️  Classes:
-  📋 InteractiveMenus (line 12)
+  📋 InteractiveMenus (line 9)
      📝 Handles all interactive menu operations
      Methods:
-       - __init__(self, pipeline) (line 15)
+       - __init__(self, pipeline) (line 12)
          📝 Initialize with reference to main pipeline
-       - run_main_menu(self) (line 23)
+       - run_main_menu(self) (line 20)
          📝 Run interactive menu for pipeline operations
-       - _interactive_fetch_only(self) (line 73)
+       - _interactive_fetch_only(self) (line 70)
          📝 Interactive article fetching without script generation
-       - _fetch_trending_only(self) (line 92)
+       - _fetch_trending_only(self) (line 89)
          📝 Fetch trending articles without generating scripts
-       - _fetch_featured_only(self) (line 126)
+       - _fetch_featured_only(self) (line 141)
          📝 Fetch featured articles without generating scripts
-       - _fetch_specific_only(self) (line 160)
+       - _fetch_specific_only(self) (line 193)
          📝 Fetch specific topic without generating script
-       - _interactive_article_to_script(self) (line 189)
+       - _interactive_article_to_script(self) (line 243)
          📝 Interactive script generation from any article
-       - _script_from_cached_article(self) (line 205)
-         📝 Create script from cached article
-       - _script_from_new_article(self) (line 240)
+       - _script_from_cached_article(self) (line 259)
+         📝 Create script from cached article - FIXED with robust data access
+       - _script_from_new_article(self) (line 329)
          📝 Create script from newly fetched article
-       - _generate_script_from_article(self, article) (line 256)
+       - _generate_script_from_article(self, article) (line 349)
          📝 Common method to generate script from an article object
-       - _interactive_complete_podcast(self) (line 390)
+       - _interactive_complete_podcast(self) (line 512)
          📝 Interactive complete podcast generation
-       - _interactive_cached_article_to_script(self) (line 432)
+       - _interactive_cached_article_to_script(self) (line 564)
          📝 Interactive script generation from cached articles
-       - _interactive_script_to_audio(self) (line 436)
-         📝 Interactive audio generation from existing scripts - FIXED
-       - _interactive_post_production(self) (line 511)
+       - _interactive_script_to_audio(self) (line 568)
+         📝 Interactive audio generation from existing scripts
+       - _interactive_post_production(self) (line 660)
          📝 Interactive post-production enhancement
-       - _show_cached_scripts(self) (line 576)
+       - _show_cached_scripts(self) (line 665)
          📝 Display cached scripts
-       - _show_podcasts(self) (line 594)
-         📝 Display generated podcasts - FIXED
-       - _show_styles(self) (line 621)
+       - _show_podcasts(self) (line 697)
+         📝 Display generated podcasts
+       - _show_styles(self) (line 737)
          📝 Display available styles with descriptions
-       - _clear_cache(self) (line 635)
+       - _clear_cache(self) (line 760)
          📝 Interactive cache clearing
-       - _clear_script_cache(self) (line 715)
-         📝 Manually clear script cache since the method doesn't exist in PodcastScriptFormatter
-       - _clear_audio_cache(self) (line 737)
-         📝 Manually clear audio cache if the method doesn't exist
-       - _display_processing_results(self, results, result_type) (line 765)
-         📝 Display results from processing multiple articles
-       - get_user_confirmation(self, message, default) (line 785)
+       - _clear_script_cache(self) (line 821)
+         📝 Manually clear script cache
+       - _clear_audio_cache(self) (line 836)
+         📝 Manually clear audio cache
+       - get_user_confirmation(self, message, default) (line 860)
          📝 Get user confirmation with default option
-       - get_user_choice(self, options, prompt) (line 795)
+       - get_user_choice(self, options, prompt) (line 870)
          📝 Get user choice from a list of options
 
 
@@ -781,13 +1578,415 @@ Returns:
 
 
 ================================================================================
+FILE: src/raw_articles/Python (programming language).json
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/raw_articles/Python (programming language).json
+Size: 52,526 bytes
+Extension: .json
+
+Lines:
+  46
+
+Size:
+  52472
+
+Type:
+  text
+
+
+================================================================================
 FILE: src/script_formatter.py
 ================================================================================
 Path: /Users/itamar/projects/wikipedia/src/script_formatter.py
-Size: 47,234 bytes
+Size: 27,260 bytes
 Extension: .py
 
-❌ Analysis Error: argument of type 'Call' is not iterable
+📝 File Docstring:
+Script Formatter - Bridge to New Modular System
+
+This file maintains compatibility with existing code while using the new modular system.
+It exports the old PodcastScriptFormatter class that your existing code expects.
+
+📦 Imports:
+  - os
+  - typing.Optional
+  - typing.Dict
+  - typing.Any
+  - typing.List
+  - datetime.datetime
+  - pathlib.Path
+  - core.PodcastScript
+  - script_generation.create_script_generator
+  - openai.OpenAI
+  - json
+  - re
+  - core.Article
+  - core.ContentType
+  - core.ContentMetadata
+  - openai.OpenAI
+  - traceback
+  - traceback
+  - time
+  - dotenv.load_dotenv
+  - json
+
+🏗️  Classes:
+  📋 PodcastScriptFormatter (line 14)
+     📝 Compatibility wrapper for the old PodcastScriptFormatter.
+This allows existing code to work while using the new modular system underneath.
+     Methods:
+       - __init__(self, openai_api_key, cache_dir) (line 20)
+         📝 Initialize with same interface as old formatter
+       - _get_openai_api_key(self) (line 37)
+         📝 Get OpenAI API key from various sources
+       - _initialize_new_system(self) (line 66)
+         📝 Initialize the new modular system
+       - format_article_to_script(self, article, style, custom_instructions, target_duration, model) (line 82)
+         📝 Convert article to script using new system or fallback.
+Returns old-style result for compatibility.
+       - _generate_with_new_system(self, article, style, custom_instructions, target_duration) (line 104)
+         📝 Generate script using new modular system
+       - _generate_with_fallback(self, article, style, custom_instructions, target_duration, model) (line 186)
+         📝 Fallback generation using direct OpenAI API with iterative approach
+       - _save_fallback_script_to_cache(self, script) (line 254)
+         📝 Save fallback script to cache
+       - _generate_single_script(self, client, article, style, custom_instructions, target_words, model) (line 302)
+         📝 Generate script in single API call
+       - _generate_long_script_iteratively(self, client, article, style, custom_instructions, target_words, model) (line 346)
+         📝 Generate long script by building it section by section
+       - _convert_article_format(self, old_article) (line 419)
+         📝 Convert old WikipediaArticle to new Article model
+       - _convert_script_to_old_format(self, new_script) (line 455)
+         📝 Convert new PodcastScript to old format
+       - get_available_styles(self) (line 496)
+         📝 Get available styles in old format
+       - test_api_connection(self) (line 532)
+         📝 Test API connection
+       - list_cached_scripts(self, style) (line 564)
+         📝 List cached scripts
+       - batch_generate_scripts(self, articles, style, custom_instructions) (line 601)
+         📝 Batch generate scripts
+
+  📋 FallbackScript (line 220)
+     Methods:
+       - __init__(self, title, style, script_content, target_duration, custom_instructions, actual_duration) (line 221)
+
+  📋 ScriptWrapper (line 123)
+     Methods:
+       - __init__(self, podcast_script) (line 124)
+       - __getitem__(self, key) (line 155)
+         📝 Allow dictionary-style access
+       - __setitem__(self, key, value) (line 159)
+         📝 Allow dictionary-style assignment
+       - get(self, key, default) (line 163)
+         📝 Dictionary-style get method
+       - keys(self) (line 167)
+         📝 Dictionary-style keys method
+       - items(self) (line 171)
+         📝 Dictionary-style items method
+
+
+================================================================================
+FILE: src/script_generation/__init__.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/script_generation/__init__.py
+Size: 1,781 bytes
+Extension: .py
+
+📝 File Docstring:
+Script Generation Package
+
+This package handles all aspects of podcast script generation:
+- Content processing and preparation
+- Script generation with various styles
+- TTS optimization and processing
+- Instruction processing and validation
+- Caching and persistence
+
+The package is organized into focused modules:
+- generators: Core script generation logic
+- styles: Style definitions and templates
+- processors: TTS processing and optimization
+- cache: Script caching and persistence
+- validators: Script validation and quality checks
+
+📦 Imports:
+  - script_generation.generators.ScriptGeneratorImpl
+  - script_generation.generators.ChapterBasedGenerator
+  - script_generation.generators.ConversationalGenerator
+  - script_generation.styles.StyleManager
+  - script_generation.styles.StyleTemplate
+  - script_generation.generators.ScriptGeneratorImpl
+
+⚙️  Functions:
+  - create_script_generator(config) (line 71)
+    📝 Create a configured script generator instance
+
+
+================================================================================
+FILE: src/script_generation/cache.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/script_generation/cache.py
+Size: 686 bytes
+Extension: .py
+
+📝 File Docstring:
+Script Caching Module - Stub Version
+This is a temporary stub to fix imports. Will be fully implemented next.
+
+📦 Imports:
+  - typing.Optional
+  - typing.Any
+
+🏗️  Classes:
+  📋 ScriptCache (line 9)
+     📝 Stub script cache
+     Methods:
+       - __init__(self, cache_dir) (line 12)
+       - get(self, key) (line 16)
+         📝 Get from cache - stub implementation
+       - set(self, key, value) (line 20)
+         📝 Set in cache - stub implementation
+
+  📋 CacheManager (line 25)
+     📝 Stub cache manager
+     Methods:
+       - __init__(self) (line 28)
+
+
+================================================================================
+FILE: src/script_generation/generators.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/script_generation/generators.py
+Size: 29,116 bytes
+Extension: .py
+
+📝 File Docstring:
+Script Generation Logic
+
+This module contains the core script generation implementations.
+Separated from the original script_formatter.py for better modularity.
+
+📦 Imports:
+  - os
+  - re
+  - datetime.datetime
+  - typing.Dict
+  - typing.List
+  - typing.Optional
+  - typing.Any
+  - pathlib.Path
+  - core.ScriptGenerator
+  - core.ProcessingResult
+  - core.ProcessingStatus
+  - core.Article
+  - core.PodcastScript
+  - core.ScriptSegment
+  - core.ScriptStyle
+  - core.ScriptGenerationError
+  - core.ConfigurationError
+  - script_generation.styles.StyleManager
+  - script_generation.processors.TTSProcessor
+  - script_generation.processors.InstructionProcessor
+  - script_generation.cache.ScriptCache
+  - script_generation.validators.ScriptValidator
+  - hashlib
+  - openai.OpenAI
+  - article_editor.ChapterEditor
+  - dotenv.load_dotenv
+
+🏗️  Classes:
+  📋 ScriptGeneratorImpl (line 32)
+     Inherits from: ScriptGenerator
+     📝 Main script generator implementation.
+Handles the core logic of converting articles to podcast scripts.
+     Methods:
+       - __init__(self, config) (line 38)
+         📝 Initialize the script generator
+       - _setup_openai_client(self) (line 52)
+         📝 Setup OpenAI client with API key validation
+       - _get_openai_api_key(self) (line 78)
+         📝 Get OpenAI API key from various sources
+       - generate_script(self, article, style, custom_instructions, target_duration) (line 108)
+         📝 Generate a podcast script from an article.
+Main entry point that orchestrates the entire process.
+       - _validate_inputs(self, article, style) (line 189)
+         📝 Validate inputs before processing
+       - _generate_cache_key(self, article, style, custom_instructions) (line 206)
+         📝 Generate a unique cache key for the script
+       - _prepare_article_content(self, article) (line 215)
+         📝 Prepare article content for script generation
+       - _generate_script_with_openai(self, article, style_config, prepared_content, custom_instructions, target_duration) (line 246)
+         📝 Generate script using OpenAI API
+       - _build_generation_prompt(self, article, style_config, prepared_content, custom_instructions, target_duration) (line 307)
+         📝 Build the generation prompt for OpenAI
+       - _get_system_prompt(self) (line 360)
+         📝 Get the system prompt for script generation
+       - _calculate_max_tokens(self, model, prompt, target_duration) (line 387)
+         📝 Calculate maximum tokens for the response based on target duration
+       - _process_generated_script(self, script_text, article, style, custom_instructions) (line 419)
+         📝 Process the generated script into a PodcastScript object
+       - _parse_script_segments(self, script_text) (line 474)
+         📝 Parse script into segments
+       - _truncate_prompt_for_model(self, prompt, model) (line 493)
+         📝 Truncate prompt to fit model context window
+       - _estimate_script_duration(self, text) (line 538)
+         📝 Estimate script duration in seconds
+       - get_available_styles(self) (line 550)
+         📝 Get available script styles
+       - __init__(self, config) (line 558)
+       - _setup_chapter_editor(self) (line 562)
+         📝 Setup chapter editor for long articles
+       - generate_script(self, article, style, custom_instructions, target_duration) (line 571)
+         📝 Generate script with chapter-based processing for long articles
+       - _should_use_chapter_editing(self, article, target_duration) (line 585)
+         📝 Determine if chapter editing should be used
+       - _generate_with_chapter_editing(self, article, style, custom_instructions, target_duration) (line 589)
+         📝 Generate script using chapter-by-chapter editing
+       - _combine_chapter_scripts(self, chapter_scripts, article, style) (line 647)
+         📝 Combine multiple chapter scripts into one
+
+  📋 ConversationalGenerator (line 679)
+     Inherits from: ScriptGeneratorImpl
+     📝 Specialized generator for conversational style scripts.
+Adds extra conversational elements and storytelling techniques.
+     Methods:
+       - _get_system_prompt(self) (line 685)
+         📝 Get specialized system prompt for conversational scripts
+
+
+================================================================================
+FILE: src/script_generation/processors.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/script_generation/processors.py
+Size: 980 bytes
+Extension: .py
+
+📝 File Docstring:
+TTS Processing Module - Stub Version
+This is a temporary stub to fix imports. Will be fully implemented next.
+
+📦 Imports:
+  - core.ProcessingResult
+  - core.ProcessingStatus
+  - typing.Dict
+  - typing.Any
+
+🏗️  Classes:
+  📋 TTSProcessor (line 10)
+     📝 Stub TTS processor
+     Methods:
+       - process_script(self, script_text) (line 13)
+         📝 Process script for TTS - stub implementation
+
+  📋 InstructionProcessor (line 22)
+     📝 Stub instruction processor
+     Methods:
+       - count_instructions(self, script_text) (line 25)
+         📝 Count instructions in script - stub implementation
+
+  📋 ScriptCleaner (line 30)
+     📝 Stub script cleaner
+     Methods:
+       - clean_for_tts(self, script_text) (line 33)
+         📝 Clean script for TTS - stub implementation
+
+
+================================================================================
+FILE: src/script_generation/styles.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/script_generation/styles.py
+Size: 15,275 bytes
+Extension: .py
+
+📝 File Docstring:
+Style Management System
+
+This module handles all script styles and templates.
+Separated from the main generator for better organization and extensibility.
+
+📦 Imports:
+  - typing.Dict
+  - typing.Any
+  - typing.Optional
+  - typing.List
+  - dataclasses.dataclass
+  - enum.Enum
+
+🔢 Constants:
+  - CONVERSATIONAL (line 15)
+  - EDUCATIONAL (line 16)
+  - NARRATIVE (line 17)
+  - PROFESSIONAL (line 18)
+
+🏗️  Classes:
+  📋 StyleCategory (line 13)
+     Inherits from: Enum
+     📝 Categories of script styles
+
+  📋 StyleTemplate (line 22)
+     📝 Template for a script style
+     Methods:
+       - get_formatted_template(self) (line 32)
+         📝 Get template with parameters filled in
+
+  📋 StyleManager (line 37)
+     📝 Manages all available script styles and templates.
+Provides a clean interface for style configuration.
+     Methods:
+       - __init__(self) (line 43)
+       - _initialize_default_styles(self) (line 47)
+         📝 Initialize default style templates
+       - get_style_config(self, style_name) (line 269)
+         📝 Get configuration for a specific style
+       - get_style_template(self, style_name) (line 283)
+         📝 Get template text for a specific style
+       - get_available_styles(self) (line 290)
+         📝 Get all available styles with their information
+       - is_valid_style(self, style_name) (line 304)
+         📝 Check if a style name is valid
+       - add_custom_style(self, style) (line 308)
+         📝 Add a custom style template
+       - get_styles_by_category(self, category) (line 313)
+         📝 Get all styles in a specific category
+       - get_style_recommendations(self, article_length, target_duration, content_type) (line 320)
+         📝 Get style recommendations based on content characteristics
+
+
+================================================================================
+FILE: src/script_generation/validators.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/script_generation/validators.py
+Size: 1,127 bytes
+Extension: .py
+
+📝 File Docstring:
+Script Validation Module - Stub Version
+This is a temporary stub to fix imports. Will be fully implemented next.
+
+📦 Imports:
+  - core.ProcessingResult
+  - core.ProcessingStatus
+
+🏗️  Classes:
+  📋 ScriptValidator (line 9)
+     📝 Stub script validator
+     Methods:
+       - validate_script(self, script_text) (line 12)
+         📝 Validate script - stub implementation
+
+  📋 QualityChecker (line 20)
+     📝 Stub quality checker
+     Methods:
+       - check_quality(self, script_text) (line 23)
+         📝 Check quality - stub implementation
+
+  📋 InstructionValidator (line 31)
+     📝 Stub instruction validator
+     Methods:
+       - validate_instructions(self, script_text) (line 34)
+         📝 Validate instructions - stub implementation
+
 
 ================================================================================
 FILE: src/tts_processor.py
@@ -836,4 +2035,50 @@ Returns:
 ⚙️  Functions:
   - replace_year(match) (line 104)
 
+
+================================================================================
+FILE: src/utils/__init__.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/utils/__init__.py
+Size: 469 bytes
+Extension: .py
+
+📦 Imports:
+  - http_client.HTTPClient
+  - http_client.create_wikipedia_client
+  - http_client.create_openai_client
+  - filesystem.FileManager
+  - filesystem.create_cache_manager
+  - filesystem.create_output_manager
+  - async_utils.AsyncBatch
+  - async_utils.AsyncRetry
+  - async_utils.create_batch_processor
+
+
+================================================================================
+FILE: src/utils/async_utils.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/utils/async_utils.py
+Size: 11,717 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'BinOp' is not iterable
+
+================================================================================
+FILE: src/utils/filesystem.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/utils/filesystem.py
+Size: 12,668 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Call' is not iterable
+
+================================================================================
+FILE: src/utils/http_client.py
+================================================================================
+Path: /Users/itamar/projects/wikipedia/src/utils/http_client.py
+Size: 6,723 bytes
+Extension: .py
+
+❌ Analysis Error: argument of type 'Call' is not iterable
 
