@@ -550,6 +550,9 @@ Remember: Script instructions = writing guidance, TTS instructions = audio optim
     def get_available_styles(self) -> Dict[str, Dict[str, Any]]:
         """Get available script styles"""
         return self.style_manager.get_available_styles()
+
+
+class ChapterBasedGenerator(ScriptGeneratorImpl):
     """
     Generator that handles long articles by breaking them into chapters.
     Useful for articles that exceed token limits.
