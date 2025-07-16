@@ -81,7 +81,7 @@ class ConfigManager:
         """
         Loads environment variables from .env files.
         """
-        env_files = [Path(".env"), Path("config/api_keys.env")]
+        env_files = [Path(".env"), Path("../config/api_keys.env")]
         for env_file in env_files:
             if env_file.exists():
                 load_dotenv(env_file)

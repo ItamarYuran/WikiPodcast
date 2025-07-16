@@ -17,6 +17,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from dotenv import load_dotenv
 
 # Google Cloud TTS imports
 from google.cloud import texttospeech
@@ -32,6 +33,8 @@ class AudioGenerator:
         """Initialize with reference to main pipeline"""
         self.pipeline = pipeline
         self.audio_dir = pipeline.audio_dir
+
+        load_dotenv('../config/api_keys.env')
         
         # Initialize Google Cloud TTS client
         try:

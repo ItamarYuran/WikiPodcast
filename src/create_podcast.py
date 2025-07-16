@@ -45,7 +45,7 @@ class PodcastCreator:
         print("=" * 45)
         
         # Load environment variables
-        load_dotenv('config/api_keys.env')
+        load_dotenv('../config/api_keys.env')
         
         # Initialize components
         self.content_fetcher = WikipediaContentFetcher()
