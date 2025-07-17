@@ -1,8 +1,8 @@
-from content_fetcher import WikipediaContentFetcher
-from script_formatter import PodcastScriptFormatter
+from content_sources.manager import ContentSourceManager
+from script_generation import create_script_generator
 
 # Load a simple article first
-fetcher = WikipediaContentFetcher(cache_dir='../raw_articles')
+manager = ContentSourceManager(); fetcher = manager.get_source('wikipedia')
 cached_articles = fetcher.list_cached_articles()
 
 # Find the "5" article you were trying to use
@@ -17,7 +17,7 @@ if article_5:
     print(f"📊 Word count: {article_5.word_count}")
     
     # Now test script generation
-    formatter = PodcastScriptFormatter(cache_dir='../processed_scripts')
+    formatter = create_script_generator()
     
     print("🧪 Testing script generation...")
     try:

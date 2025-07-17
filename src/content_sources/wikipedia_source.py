@@ -1,274 +1,345 @@
 """
-Wikipedia Content Source
+Pure Wikipedia Content Source - NO legacy dependencies
+Eliminates all duplication by implementing Wikipedia API calls directly.
 """
+
 import requests
-from typing import List, Optional
-import sys
-from pathlib import Path
 import json
-from datetime import datetime
+import time
+from typing import List, Optional
 from pathlib import Path
-from .interfaces import ContentSource
-from core.models import Article
-
-# Add src to path to import legacy components
-current_dir = Path(__file__).parent
-src_dir = current_dir.parent
-sys.path.insert(0, str(src_dir))
+from datetime import datetime
+import re
 
 from .interfaces import ContentSource
-from core.models import Article
+from core.models import Article, ContentMetadata, ContentType
+
 
 class WikipediaContentSource(ContentSource):
     """
-    A content source for fetching articles from Wikipedia.
-    Now delegates to the working legacy WikipediaContentFetcher.
+    Pure Wikipedia implementation - zero legacy dependencies
     """
     
-    def __init__(self, api_url: str = "https://en.wikipedia.org/api/rest_v1/page/summary/"):
-        """
-        Initializes the WikipediaContentSource.
+    def __init__(self):
+        self.base_url = 'https://en.wikipedia.org/api/rest_v1'
+        self.api_url = 'https://en.wikipedia.org/w/api.php'
+        self.headers = {
+            'User-Agent': 'WikipediaPodcastBot/1.0',
+            'Accept': 'application/json'
+        }
         
-        Args:
-            api_url (str): The URL of the Wikipedia API.
-        """
-        self.api_url = api_url
+        # Use the same cache directory for consistency
+        self.cache_dir = Path('raw_articles')
+        self.cache_dir.mkdir(exist_ok=True)
         
-        # Initialize the working legacy fetcher
-        try:
-            from content_fetcher import WikipediaContentFetcher
-            self.fetcher = WikipediaContentFetcher(cache_dir='raw_articles')
-            print("✅ WikipediaContentSource using legacy fetcher")
-        except ImportError as e:
-            print(f"⚠️  Could not import legacy fetcher: {e}")
-            self.fetcher = None
+        print("✅ WikipediaContentSource (pure implementation - no legacy)")
     
     def fetch_article(self, identifier: str) -> Optional[Article]:
-        """
-        Fetches a single article from Wikipedia with complete metadata.
-        Delegates to the working legacy fetcher and preserves all metadata.
-        """
-        if self.fetcher:
-            # Use legacy fetcher to get rich article data
-            legacy_article = self.fetcher.fetch_article(identifier)
-            if legacy_article:
-                # Create ContentMetadata with all the rich data from legacy article
-                from core.models import ContentMetadata, ContentType
+        """Fetch article using direct Wikipedia API calls - no legacy dependency"""
+        
+        print(f"Fetching article: {identifier}")
+        
+        # Check cache first
+        cached = self._get_from_cache(identifier)
+        if cached:
+            print(f"✓ Cached: {identifier} ({cached.word_count} words)")
+            return cached
+        
+        try:
+            # Get article content using Wikipedia API
+            page_url = f"{self.api_url}?action=query&format=json&titles={identifier}&prop=extracts|pageimages|categories|info&exintro=&explaintext=&exsectionformat=plain&piprop=original&inprop=url"
+            
+            response = requests.get(page_url, headers=self.headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            pages = data.get('query', {}).get('pages', {})
+            if not pages:
+                print(f"❌ No data found for {identifier}")
+                return None
+            
+            page_data = list(pages.values())[0]
+            
+            if 'missing' in page_data:
+                print(f"❌ Article not found: {identifier}")
+                return None
+            
+            title = page_data.get('title', identifier)
+            content = page_data.get('extract', '')
+            url = page_data.get('fullurl', f"https://en.wikipedia.org/wiki/{identifier}")
+            
+            # Extract summary (first paragraph)
+            summary = content.split('\n')[0] if content else ''
+            if len(summary) > 500:
+                summary = summary[:500] + '...'
+            
+            # Get categories
+            categories = []
+            for cat in page_data.get('categories', []):
+                cat_title = cat.get('title', '').replace('Category:', '')
+                if cat_title:
+                    categories.append(cat_title)
+            
+            # Create metadata
+            metadata = ContentMetadata(
+                source="wikipedia",
+                language="en",
+                categories=categories[:10],  # Limit categories
+                quality_score=self._calculate_quality_score(content, categories),
+                page_views=1000,  # Default value
+                last_modified=datetime.now().isoformat(),
+                references=[],
+                images=[]
+            )
+            
+            # Create Article
+            article = Article(
+                id=identifier,
+                title=title,
+                content=content,
+                summary=summary,
+                url=url,
+                content_type=ContentType.WIKIPEDIA_ARTICLE,
+                metadata=metadata
+            )
+            
+            # Set compatibility attributes for interactive menu
+            article.word_count = len(content.split()) if content else 0
+            article.quality_score = metadata.quality_score
+            article.page_views = metadata.page_views
+            article.last_modified = metadata.last_modified
+            article.categories = metadata.categories
+            article.references = metadata.references
+            article.images = metadata.images
+            
+            # Cache the result
+            self._save_to_cache(identifier, article)
+            
+            print(f"✓ Fetched: {title} ({article.word_count} words)")
+            return article
+            
+        except Exception as e:
+            print(f"❌ Error fetching {identifier}: {e}")
+            return None
+    
+    def search_articles(self, query: str) -> List[Article]:
+        """Search Wikipedia articles"""
+        try:
+            search_url = f"{self.api_url}?action=query&list=search&srsearch={query}&format=json&srlimit=5"
+            response = requests.get(search_url, headers=self.headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            articles = []
+            for result in data.get('query', {}).get('search', []):
+                article = self.fetch_article(result['title'])
+                if article:
+                    articles.append(article)
+            
+            return articles
+            
+        except Exception as e:
+            print(f"❌ Search error: {e}")
+            return []
+    
+    def _calculate_quality_score(self, content: str, categories: list) -> float:
+        """Calculate article quality score"""
+        score = 0.5  # Base score
+        
+        # Content length factor
+        word_count = len(content.split()) if content else 0
+        if word_count > 1000:
+            score += 0.3
+        elif word_count > 500:
+            score += 0.2
+        elif word_count > 200:
+            score += 0.1
+        
+        # Categories factor (indicates well-organized article)
+        if len(categories) > 5:
+            score += 0.2
+        elif len(categories) > 2:
+            score += 0.1
+        
+        return min(1.0, score)
+    
+    def _get_from_cache(self, identifier: str) -> Optional[Article]:
+        """Get article from cache"""
+        # Use same cache format as legacy system for compatibility
+        cache_file = self.cache_dir / f"{identifier.replace('/', '_').replace(' ', '_')}.json"
+        
+        if cache_file.exists():
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
                 
-                metadata = ContentMetadata(
-                    source="wikipedia",
-                    language="en",
-                    categories=getattr(legacy_article, 'categories', []),
-                    quality_score=getattr(legacy_article, 'quality_score', 0.0),
-                    page_views=getattr(legacy_article, 'page_views', 0),
-                    last_modified=getattr(legacy_article, 'last_modified', None),
-                    references=getattr(legacy_article, 'references', []),
-                    images=getattr(legacy_article, 'images', [])
-                )
+                # Handle both new and legacy cache formats
+                if 'metadata' in data:
+                    # New format
+                    metadata = ContentMetadata(
+                        source=data['metadata'].get('source', 'wikipedia'),
+                        language=data['metadata'].get('language', 'en'),
+                        categories=data['metadata'].get('categories', []),
+                        quality_score=data['metadata'].get('quality_score', 0.0),
+                        page_views=data['metadata'].get('page_views', 0),
+                        last_modified=data['metadata'].get('last_modified', ''),
+                        references=data['metadata'].get('references', []),
+                        images=data['metadata'].get('images', [])
+                    )
+                else:
+                    # Legacy format compatibility
+                    metadata = ContentMetadata(
+                        source="wikipedia",
+                        language="en",
+                        categories=data.get('categories', []),
+                        quality_score=data.get('quality_score', 0.0),
+                        page_views=data.get('page_views', 0),
+                        last_modified=data.get('last_modified', ''),
+                        references=data.get('references', []),
+                        images=data.get('images', [])
+                    )
                 
-                # Create Article object with complete metadata (NO id parameter)
                 article = Article(
-                    id=legacy_article.title.replace(' ', '_'),
-                    title=legacy_article.title,
-                    content=legacy_article.content,
-                    summary=getattr(legacy_article, 'summary', ''),
-                    url=getattr(legacy_article, 'url', ''),
+                    id=data.get('id', identifier),
+                    title=data.get('title', identifier),
+                    content=data.get('content', ''),
+                    summary=data.get('summary', ''),
+                    url=data.get('url', ''),
                     content_type=ContentType.WIKIPEDIA_ARTICLE,
                     metadata=metadata
                 )
                 
-                # Set metadata as direct attributes for interactive menu compatibility
-                article.word_count = getattr(legacy_article, 'word_count', len(legacy_article.content.split()))
-                article.quality_score = getattr(legacy_article, 'quality_score', 0.0)
-                article.page_views = getattr(legacy_article, 'page_views', 0)
-                article.references = getattr(legacy_article, 'references', [])
-                article.images = getattr(legacy_article, 'images', [])
-                article.last_modified = getattr(legacy_article, 'last_modified', '')
-                article.categories = getattr(legacy_article, 'categories', [])
+                # Set compatibility attributes
+                article.word_count = data.get('word_count', 0)
+                article.quality_score = data.get('quality_score', 0.0)
+                article.page_views = data.get('page_views', 0)
+                article.last_modified = data.get('last_modified', '')
+                article.categories = data.get('categories', [])
+                article.references = data.get('references', [])
+                article.images = data.get('images', [])
                 
                 return article
+                
+            except Exception as e:
+                print(f"⚠️ Cache read error for {identifier}: {e}")
+                return None
         
-        # Fallback to original simple implementation (without rich metadata)
+        return None
+    
+    def _save_to_cache(self, identifier: str, article: Article):
+        """Save article to cache using same format as legacy system"""
         try:
-            import requests
-            response = requests.get(f"{self.api_url}{identifier}")
-            response.raise_for_status()
-            data = response.json()
+            cache_file = self.cache_dir / f"{identifier.replace('/', '_').replace(' ', '_')}.json"
             
-            # Create basic article without rich metadata (NO id parameter)
-            article = Article(
-                id=data.get("title", "unknown").replace(' ', '_'),
-                title=data.get("title", ""),
-                content=data.get("extract", ""),
-                url=data.get("content_urls", {}).get("desktop", {}).get("page", ""),
-                content_type=ContentType.WIKIPEDIA_ARTICLE,
-                metadata=ContentMetadata(source="wikipedia", language="en")
-            )
+            # Use format compatible with legacy system and interactive menu
+            data = {
+                'id': article.id,
+                'title': article.title,
+                'content': article.content,
+                'summary': article.summary,
+                'url': article.url,
+                'word_count': article.word_count,
+                'quality_score': article.quality_score,
+                'page_views': article.page_views,
+                'last_modified': article.last_modified,
+                'categories': article.categories,
+                'references': article.references,
+                'images': article.images,
+                'cached_timestamp': time.time(),
+                'metadata': {
+                    'source': article.metadata.source,
+                    'language': article.metadata.language,
+                    'categories': article.metadata.categories,
+                    'quality_score': article.metadata.quality_score,
+                    'page_views': article.metadata.page_views,
+                    'last_modified': article.metadata.last_modified,
+                    'references': article.metadata.references,
+                    'images': article.metadata.images
+                }
+            }
             
-            # Set basic attributes
-            article.word_count = len(article.content.split()) if article.content else 0
-            article.quality_score = 0.0  # No quality data from simple API
-            article.page_views = 0  # No view data from simple API
-            article.references = []
-            article.images = []
-            article.last_modified = ''
-            article.categories = []
-            
-            return article
-            
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                
         except Exception as e:
-            print(f"❌ Fallback fetch failed: {e}")
-            return None
-    
-    def search_articles(self, query: str) -> List[Article]:
-        """
-        Searches for articles on Wikipedia.
-        Delegates to the working legacy fetcher.
-        """
-        if self.fetcher:
-            # Use legacy fetcher
-            legacy_article = self.fetcher.fetch_article(query)
-            if legacy_article:
-                return [Article(
-                    title=legacy_article.title,
-                    content=legacy_article.content,
-                    url=legacy_article.url,
-                    source="wikipedia"
-                )]
-        
-        # Fallback to original simple implementation
-        article = self.fetch_article(query)
-        return [article] if article else []
-    
-    def get_cache_stats(self):
-        """Get cache statistics from the legacy fetcher"""
-        if hasattr(self, 'fetcher') and self.fetcher and hasattr(self.fetcher, 'get_cache_stats'):
-            return self.fetcher.get_cache_stats()
-        return {
-            'total_articles': 0,
-            'trending_batches': 0,
-            'featured_batches': 0,
-            'total_size_mb': 0.0
-        }
+            print(f"⚠️ Cache write error for {identifier}: {e}")
     
     def list_cached_articles(self):
-        """
-        List all cached articles with complete metadata for the interactive menu.
-        This is the authoritative implementation that replaces all others.
-        """
-        try:
-            cached = []
-            
-            # Use the legacy fetcher's cache directory for consistency
-            if hasattr(self, 'fetcher') and self.fetcher and hasattr(self.fetcher, 'cache_dir'):
-                cache_dir = self.fetcher.cache_dir
-            else:
-                # Fallback to common cache directories
-                from pathlib import Path
-                possible_dirs = [Path('raw_articles'), Path('../raw_articles')]
-                cache_dir = None
-                for dir_path in possible_dirs:
-                    if dir_path.exists():
-                        cache_dir = dir_path
-                        break
-                
-                if not cache_dir:
-                    return []
-            
-            # Look for JSON files in the cache directory
-            for file_path in cache_dir.glob('*.json'):
-                # Skip system files and temporary files
-                if file_path.name.startswith(('trending_', 'featured_', 'stats_', 'temp_', '.')):
-                    continue
-                    
+        """List all cached articles - compatible with interactive menu"""
+        cached = []
+        
+        for file_path in self.cache_dir.glob('*.json'):
+            if not file_path.name.startswith(('trending_', 'featured_', 'stats_')):
                 try:
-                    # Load the file to get metadata
                     with open(file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                     
-                    # Extract and enhance metadata
-                    title = data.get('title', file_path.stem.replace('_', ' '))
-                    word_count = data.get('word_count', 0)
-                    
-                    # Calculate word count if missing
-                    if word_count == 0 and data.get('content'):
-                        word_count = len(data.get('content', '').split())
-                    
-                    # Get cached date from file modification time
-                    cached_date = datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
-                    
-                    # Create complete metadata record
-                    article_metadata = {
-                        'title': title,
-                        'filename': file_path.name,
-                        'word_count': word_count,
-                        'quality_score': data.get('quality_score', 0.0),
-                        'page_views': data.get('page_views', 'Not available'),
-                        'cached_date': cached_date,
-                        'last_modified': data.get('last_modified', cached_date),
-                        'references': data.get('references', []),
-                        'images': data.get('images', []),
-                        'url': data.get('url', ''),
-                        'summary': data.get('summary', '')
-                    }
-                    
-                    cached.append(article_metadata)
-                    
-                except json.JSONDecodeError as e:
-                    # Handle corrupted JSON files
-                    print(f"⚠️ Corrupted JSON file {file_path.name}: {e}")
                     cached.append({
-                        'title': f"Corrupted: {file_path.stem.replace('_', ' ')}",
+                        'title': data.get('title', file_path.stem.replace('_', ' ')),
                         'filename': file_path.name,
-                        'word_count': 0,
-                        'quality_score': 0.0,
-                        'page_views': 'Not available',
-                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M'),
-                        'last_modified': '',
-                        'references': [],
-                        'images': [],
-                        'url': '',
-                        'summary': 'File corrupted'
+                        'word_count': data.get('word_count', 0),
+                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
                     })
                     
-                except Exception as e:
-                    # Handle other file reading errors
-                    print(f"⚠️ Could not read {file_path.name}: {e}")
+                except Exception:
+                    # Fallback for corrupted files
                     cached.append({
                         'title': file_path.stem.replace('_', ' '),
                         'filename': file_path.name,
                         'word_count': 0,
-                        'quality_score': 0.0,
-                        'page_views': 'Not available',
-                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M'),
-                        'last_modified': '',
-                        'references': [],
-                        'images': [],
-                        'url': '',
-                        'summary': 'Read error'
+                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
                     })
-            
-            # Sort by cached date (newest first)
-            return sorted(cached, key=lambda x: x['cached_date'], reverse=True)
-            
-        except Exception as e:
-            print(f"❌ Error listing cached articles: {e}")
-            return []
+        
+        return cached
     
     def load_cached_article(self, filename: str):
-        """Load cached article from the legacy fetcher"""
-        if hasattr(self, 'fetcher') and self.fetcher and hasattr(self.fetcher, 'load_cached_article'):
-            return self.fetcher.load_cached_article(filename)
-        return None
+        """Load specific cached article by filename - for interactive menu compatibility"""
+        identifier = filename.replace('.json', '').replace('_', ' ')
+        return self._get_from_cache(identifier)
     
     def get_trending_articles(self, count: int = 5):
-        """Get trending articles from the legacy fetcher"""
-        if hasattr(self, 'fetcher') and self.fetcher and hasattr(self.fetcher, 'get_trending_articles'):
-            return self.fetcher.get_trending_articles(count)
-        return []
+        """Get trending articles - simplified implementation"""
+        trending_topics = ['Python', 'Artificial_intelligence', 'Climate_change', 'Space_exploration', 'Quantum_computing']
+        articles = []
+        
+        for topic in trending_topics[:count]:
+            article = self.fetch_article(topic)
+            if article:
+                articles.append(article)
+        
+        return articles
     
-    def get_featured_articles(self, count: int = 3):
-        """Get featured articles from the legacy fetcher"""
-        if hasattr(self, 'fetcher') and self.fetcher and hasattr(self.fetcher, 'get_featured_articles'):
-            return self.fetcher.get_featured_articles(count)
-        return []
+    def get_featured_articles(self, count: int = 5):
+        """Get featured articles - simplified implementation"""
+        featured_topics = ['Albert_Einstein', 'Leonardo_da_Vinci', 'Marie_Curie', 'Isaac_Newton', 'Charles_Darwin']
+        articles = []
+        
+        for topic in featured_topics[:count]:
+            article = self.fetch_article(topic)
+            if article:
+                articles.append(article)
+        
+        return articles
+
+    def get_cache_stats(self):
+        """Get cache statistics for pipeline status"""
+        try:
+            cache_files = list(self.cache_dir.glob('*.json'))
+            total_size = sum(f.stat().st_size for f in cache_files)
+            
+            return {
+                'total_articles': len([f for f in cache_files if not f.name.startswith(('trending_', 'featured_', 'stats_'))]),
+                'trending_batches': len([f for f in cache_files if f.name.startswith('trending_')]),
+                'featured_batches': len([f for f in cache_files if f.name.startswith('featured_')]),
+                'total_size_mb': round(total_size / (1024 * 1024), 2),
+                'cache_dir': str(self.cache_dir)
+            }
+            
+        except Exception as e:
+            return {
+                'total_articles': 0,
+                'trending_batches': 0, 
+                'featured_batches': 0,
+                'total_size_mb': 0.0,
+                'error': str(e)
+            }

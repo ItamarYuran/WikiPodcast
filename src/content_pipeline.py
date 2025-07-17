@@ -11,7 +11,7 @@ import time
 import copy
 from datetime import datetime
 from typing import List, Optional
-from script_formatter import PodcastScript
+from core.models import PodcastScript
 
 
 class ContentProcessor:

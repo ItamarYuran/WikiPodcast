@@ -24,8 +24,8 @@ import json
 sys.path.append(str(Path(__file__).parent))
 
 try:
-    from content_fetcher import WikipediaContentFetcher
-    from script_formatter import PodcastScriptFormatter
+    from content_sources.manager import ContentSourceManager
+    from script_generation import create_script_generator
     from openai import OpenAI
     from dotenv import load_dotenv
     # Google Cloud TTS imports
@@ -48,8 +48,8 @@ class PodcastCreator:
         load_dotenv('../config/api_keys.env')
         
         # Initialize components
-        self.content_fetcher = WikipediaContentFetcher()
-        self.script_formatter = PodcastScriptFormatter()
+        manager = ContentSourceManager(); self.content_fetcher = manager.get_source("wikipedia")
+        self.script_formatter = create_script_generator()
         
         # Initialize OpenAI client for script generation
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
