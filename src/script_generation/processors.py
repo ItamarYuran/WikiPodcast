@@ -4,10 +4,14 @@ Production-ready implementation with comprehensive error handling and voice opti
 """
 
 import re
+import json
+import hashlib
 import logging
 from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
+from pathlib import Path
+import time
 
 from core import ProcessingResult, ProcessingStatus
 
@@ -36,18 +40,40 @@ class ProcessingStats:
     instructions_removed: int
     instructions_converted: int
     ssml_tags_added: int
-    issues_found: List[str]
+    abbreviations_expanded: int = 0
+    numbers_converted: int = 0
+    processing_time_ms: float = 0
+    issues_found: List[str] = None
+    
+    def __post_init__(self):
+        if self.issues_found is None:
+            self.issues_found = []
 
 
 @dataclass
 class ValidationResult:
     """Result of script validation"""
+    is_valid: bool
     overall_score: float      # 0.0 to 1.0
     readability_score: float
     structure_score: float
     tts_compatibility_score: float
-    issues: List[str]
-    suggestions: List[str]
+    word_count: int = 0
+    estimated_duration_minutes: float = 0
+    errors: List[str] = None
+    warnings: List[str] = None
+    issues: List[str] = None
+    suggestions: List[str] = None
+    
+    def __post_init__(self):
+        if self.errors is None:
+            self.errors = []
+        if self.warnings is None:
+            self.warnings = []
+        if self.issues is None:
+            self.issues = []
+        if self.suggestions is None:
+            self.suggestions = []
 
 
 class TTSProcessor:
@@ -138,7 +164,6 @@ class TTSProcessor:
             'WHO': 'world health organization',
             'NATO': 'nato',
             'GDP': 'G D P',
-            'CEO': 'chief executive officer',
             'vs': 'versus',
             'etc': 'etcetera',
             'i.e.': 'that is',
@@ -183,6 +208,8 @@ class TTSProcessor:
         Returns:
             ProcessingResult with processed text and statistics
         """
+        start_time = time.time()
+        
         try:
             voice_type = self.detect_voice_type(voice_name)
             
@@ -199,18 +226,35 @@ class TTSProcessor:
                 instructions_removed=0,
                 instructions_converted=0,
                 ssml_tags_added=0,
+                abbreviations_expanded=0,
+                numbers_converted=0,
+                processing_time_ms=0,
                 issues_found=[]
             )
             
+            processed_text = script_text
+            
             # Step 1: Remove script instructions (writing guidance)
-            processed_text, removed_count = self._remove_script_instructions(script_text)
+            processed_text, removed_count = self._remove_script_instructions(processed_text)
             stats.instructions_removed = removed_count
             
-            # Step 2: Convert TTS instructions to SSML (if supported)
+            # Step 2: Expand abbreviations for better pronunciation
+            processed_text, abbrev_count = self._expand_abbreviations(processed_text)
+            stats.abbreviations_expanded = abbrev_count
+            
+            # Step 3: Convert numbers to speech-friendly format
+            processed_text, number_count = self._convert_numbers_to_words(processed_text)
+            stats.numbers_converted = number_count
+            
+            # Step 4: Convert TTS instructions to SSML (if supported)
             if use_ssml:
                 processed_text, converted_count, ssml_count = self._convert_tts_instructions_to_ssml(processed_text, voice_type)
                 stats.instructions_converted = converted_count
                 stats.ssml_tags_added = ssml_count
+                
+                # Add natural pauses for better flow
+                processed_text = self._add_natural_pauses(processed_text)
+                stats.ssml_tags_added += len(re.findall(r'<break', processed_text))
                 
                 # Wrap in SSML speak tags if not already present
                 if not processed_text.strip().startswith('<speak>'):
@@ -221,15 +265,16 @@ class TTSProcessor:
                 processed_text, removed_tts = self._remove_tts_instructions(processed_text)
                 stats.instructions_removed += removed_tts
             
-            # Step 3: Normalize text for TTS
+            # Step 5: Normalize text for TTS
             processed_text = self._normalize_text_for_tts(processed_text)
             
-            # Step 4: Validate SSML if using it
+            # Step 6: Validate SSML if using it
             if use_ssml:
                 validation_issues = self._validate_ssml(processed_text, voice_type)
                 stats.issues_found.extend(validation_issues)
             
             stats.processed_word_count = len(self._extract_text_from_ssml(processed_text).split())
+            stats.processing_time_ms = (time.time() - start_time) * 1000
             
             return ProcessingResult(
                 status=ProcessingStatus.COMPLETED,
@@ -237,7 +282,7 @@ class TTSProcessor:
                 metadata={
                     'voice_type': voice_type.value,
                     'use_ssml': use_ssml,
-                    'stats': stats,
+                    'stats': asdict(stats),
                     'processing_method': 'enhanced_tts_processor'
                 }
             )
@@ -269,6 +314,51 @@ class TTSProcessor:
             processed = pattern.sub('', processed)
         
         return processed, removed_count
+    
+    def _expand_abbreviations(self, text: str) -> Tuple[str, int]:
+        """Expand abbreviations for better pronunciation"""
+        expanded_count = 0
+        processed = text
+        
+        for abbrev, expansion in self.abbreviations.items():
+            # Use word boundaries to avoid partial matches
+            pattern = r'\b' + re.escape(abbrev) + r'\b'
+            matches = len(re.findall(pattern, processed, flags=re.IGNORECASE))
+            if matches > 0:
+                processed = re.sub(pattern, expansion, processed, flags=re.IGNORECASE)
+                expanded_count += matches
+        
+        return processed, expanded_count
+    
+    def _convert_numbers_to_words(self, text: str) -> Tuple[str, int]:
+        """Convert numbers to speech-friendly format"""
+        converted_count = 0
+        processed = text
+        
+        # Convert years (1995 → nineteen ninety-five)
+        def convert_year(match):
+            nonlocal converted_count
+            year = int(match.group())
+            converted_count += 1
+            # Simple year conversion (you can expand this)
+            year_str = str(year)
+            if len(year_str) == 4:
+                first_two = year_str[:2]
+                last_two = year_str[2:]
+                return f"{first_two} {last_two}"
+            return str(year)
+        
+        processed = re.sub(r'\b(19|20)(\d{2})\b', convert_year, processed)
+        
+        # Convert numbers with commas for better pronunciation
+        def convert_large_number(match):
+            nonlocal converted_count
+            converted_count += 1
+            return match.group().replace(',', ' thousand ')
+        
+        processed = re.sub(r'\b(\d{1,3}),(\d{3})\b', r'\1 thousand \2', processed)
+        
+        return processed, converted_count
     
     def _convert_tts_instructions_to_ssml(self, text: str, voice_type: VoiceType) -> Tuple[str, int, int]:
         """Convert TTS instructions to SSML markup"""
@@ -366,6 +456,16 @@ class TTSProcessor:
         
         return processed, removed_count
     
+    def _add_natural_pauses(self, text: str) -> str:
+        """Add natural pauses for better speech flow"""
+        # Add pauses after sentences (avoid double pauses)
+        text = re.sub(r'\.(\s+)([A-Z])', r'.<break time="0.5s"/>\1\2', text)
+        
+        # Add short pauses after commas
+        text = re.sub(r',(\s+)([a-zA-Z])', r',<break time="0.2s"/>\1\2', text)
+        
+        return text
+    
     def _normalize_text_for_tts(self, text: str) -> str:
         """Normalize text for better TTS pronunciation"""
         processed = text
@@ -383,19 +483,6 @@ class TTSProcessor:
         # Protect existing SSML tags
         processed = re.sub(tag_pattern, protect_tag, processed)
         
-        # Expand abbreviations
-        for abbrev, expansion in self.abbreviations.items():
-            # Use word boundaries to avoid partial matches
-            pattern = r'\b' + re.escape(abbrev) + r'\b'
-            processed = re.sub(pattern, expansion, processed, flags=re.IGNORECASE)
-        
-        # Convert years to spoken format
-        processed = re.sub(r'\b(19|20)(\d{2})\b', r'\1 \2', processed)
-        
-        # Convert numbers with commas
-        processed = re.sub(r'\b(\d{1,3}),(\d{3})\b', r'\1 thousand \2', processed)
-        processed = re.sub(r'\b(\d{1,3}),(\d{3}),(\d{3})\b', r'\1 million \2 thousand \3', processed)
-        
         # Convert common symbols (excluding < and > to protect SSML)
         symbol_replacements = {
             '&': ' and ',
@@ -410,7 +497,6 @@ class TTSProcessor:
             '™': ' trademark',
             '®': ' registered',
             '©': ' copyright'
-            # Note: Removed '=' , '<', '>' to protect SSML
         }
         
         for symbol, replacement in symbol_replacements.items():
@@ -603,44 +689,53 @@ class ScriptValidator:
                 tts_compatibility_score * 0.3
             )
             
+            # Word count and duration estimation
+            word_count = len(script_text.split())
+            estimated_duration = word_count / 150  # Average speaking rate
+            
             # Collect issues and suggestions
-            issues = []
+            errors = []
+            warnings = []
             suggestions = []
             
             # Readability issues
             if readability_score < 0.6:
-                issues.append("Low readability score - script may be hard to follow")
+                warnings.append("Low readability score - script may be hard to follow")
                 suggestions.append("Use shorter sentences and simpler vocabulary")
             
             # Structure issues
             if structure_score < 0.7:
-                issues.append("Poor structure - script lacks clear organization")
+                warnings.append("Poor structure - script lacks clear organization")
                 suggestions.append("Add clear introduction, main content, and conclusion sections")
             
             # TTS compatibility issues
             if tts_compatibility_score < 0.8:
-                issues.append("TTS compatibility issues found")
+                warnings.append("TTS compatibility issues found")
                 suggestions.extend(self.instruction_processor.suggest_instruction_improvements(script_text))
             
             # Word count validation
-            word_count = len(script_text.split())
             if word_count < 100:
-                issues.append("Script is very short")
+                errors.append("Script is very short")
                 suggestions.append("Consider expanding content for better podcast experience")
             elif word_count > 5000:
-                issues.append("Script is very long")
+                warnings.append("Script is very long")
                 suggestions.append("Consider breaking into chapters or shortening")
             
             # Content quality checks
             content_issues = self._check_content_quality(script_text)
-            issues.extend(content_issues)
+            warnings.extend(content_issues)
             
             validation_result = ValidationResult(
+                is_valid=len(errors) == 0,
                 overall_score=overall_score,
                 readability_score=readability_score,
                 structure_score=structure_score,
                 tts_compatibility_score=tts_compatibility_score,
-                issues=issues,
+                word_count=word_count,
+                estimated_duration_minutes=round(estimated_duration, 1),
+                errors=errors,
+                warnings=warnings,
+                issues=warnings + errors,  # Combined for backward compatibility
                 suggestions=suggestions
             )
             
@@ -759,6 +854,161 @@ class ScriptValidator:
         return issues
 
 
+class ScriptCache:
+    """
+    Caching system for processed scripts to avoid reprocessing.
+    """
+    
+    def __init__(self, cache_dir: str = "../processed_scripts/cache"):
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.logger = logging.getLogger(__name__)
+    
+    def _generate_cache_key(self, content: str, voice_name: str, options: Dict[str, Any] = None) -> str:
+        """Generate a unique cache key for the content and processing options"""
+        if options is None:
+            options = {}
+        
+        # Create a hash from content + voice + options
+        content_hash = hashlib.md5(content.encode()).hexdigest()[:16]
+        voice_hash = hashlib.md5(voice_name.encode()).hexdigest()[:8]
+        options_str = json.dumps(options, sort_keys=True)
+        options_hash = hashlib.md5(options_str.encode()).hexdigest()[:8]
+        
+        return f"{content_hash}_{voice_hash}_{options_hash}"
+    
+    def get(self, content: str, voice_name: str, options: Dict[str, Any] = None) -> Optional[str]:
+        """
+        Get cached processed script if available.
+        
+        Args:
+            content: Original script content
+            voice_name: TTS voice name
+            options: Processing options
+            
+        Returns:
+            Cached processed script or None if not found
+        """
+        try:
+            cache_key = self._generate_cache_key(content, voice_name, options)
+            cache_file = self.cache_dir / f"{cache_key}.json"
+            
+            if cache_file.exists():
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+                
+                # Check if cache is still valid (less than 24 hours old)
+                cached_time = cache_data.get('timestamp', 0)
+                current_time = time.time()
+                
+                if current_time - cached_time < 24 * 60 * 60:  # 24 hours
+                    self.logger.info(f"Cache hit for key: {cache_key}")
+                    return cache_data.get('processed_content')
+                else:
+                    # Cache expired, remove it
+                    cache_file.unlink()
+                    self.logger.info(f"Cache expired for key: {cache_key}")
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error reading cache: {str(e)}")
+            return None
+    
+    def set(self, content: str, voice_name: str, processed_content: str, 
+            options: Dict[str, Any] = None, metadata: Dict[str, Any] = None) -> bool:
+        """
+        Cache processed script.
+        
+        Args:
+            content: Original script content
+            voice_name: TTS voice name
+            processed_content: Processed script content
+            options: Processing options
+            metadata: Additional metadata to store
+            
+        Returns:
+            True if cached successfully, False otherwise
+        """
+        try:
+            cache_key = self._generate_cache_key(content, voice_name, options)
+            cache_file = self.cache_dir / f"{cache_key}.json"
+            
+            cache_data = {
+                'original_content_hash': hashlib.md5(content.encode()).hexdigest(),
+                'voice_name': voice_name,
+                'processed_content': processed_content,
+                'options': options or {},
+                'metadata': metadata or {},
+                'timestamp': time.time()
+            }
+            
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, indent=2, ensure_ascii=False)
+            
+            self.logger.info(f"Cached processed script with key: {cache_key}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error writing cache: {str(e)}")
+            return False
+    
+    def clear(self, max_age_hours: int = 24) -> int:
+        """
+        Clear old cache entries.
+        
+        Args:
+            max_age_hours: Maximum age in hours for cache entries
+            
+        Returns:
+            Number of entries cleared
+        """
+        cleared_count = 0
+        current_time = time.time()
+        max_age_seconds = max_age_hours * 60 * 60
+        
+        try:
+            for cache_file in self.cache_dir.glob("*.json"):
+                try:
+                    with open(cache_file, 'r', encoding='utf-8') as f:
+                        cache_data = json.load(f)
+                    
+                    cached_time = cache_data.get('timestamp', 0)
+                    if current_time - cached_time > max_age_seconds:
+                        cache_file.unlink()
+                        cleared_count += 1
+                        
+                except Exception as e:
+                    # If we can't read the cache file, delete it
+                    self.logger.warning(f"Removing corrupted cache file {cache_file}: {e}")
+                    cache_file.unlink()
+                    cleared_count += 1
+            
+            self.logger.info(f"Cleared {cleared_count} old cache entries")
+            return cleared_count
+            
+        except Exception as e:
+            self.logger.error(f"Error clearing cache: {str(e)}")
+            return 0
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        try:
+            cache_files = list(self.cache_dir.glob("*.json"))
+            total_size = sum(f.stat().st_size for f in cache_files)
+            
+            return {
+                'total_entries': len(cache_files),
+                'total_size_bytes': total_size,
+                'total_size_mb': round(total_size / (1024 * 1024), 2),
+                'cache_dir': str(self.cache_dir)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting cache stats: {str(e)}")
+            return {'error': str(e)}
+
+
 class ScriptCleaner:
     """
     Utility class for cleaning and preparing scripts for various outputs.
@@ -766,20 +1016,35 @@ class ScriptCleaner:
     
     def __init__(self):
         self.tts_processor = TTSProcessor()
+        self.cache = ScriptCache()
     
-    def clean_for_tts(self, script_text: str, voice_name: str = "neural2") -> str:
+    def clean_for_tts(self, script_text: str, voice_name: str = "neural2", use_cache: bool = True) -> str:
         """
-        Clean script for TTS processing.
+        Clean script for TTS processing with optional caching.
         
         Args:
             script_text: Raw script text
             voice_name: TTS voice name
+            use_cache: Whether to use caching
             
         Returns:
             TTS-ready text
         """
+        if use_cache:
+            # Try to get from cache first
+            cached_result = self.cache.get(script_text, voice_name)
+            if cached_result:
+                return cached_result
+        
+        # Process the script
         result = self.tts_processor.process_script(script_text, voice_name)
-        return result.data if result.is_success else script_text
+        processed_text = result.data if result.is_success else script_text
+        
+        if use_cache and result.is_success:
+            # Cache the result
+            self.cache.set(script_text, voice_name, processed_text, metadata=result.metadata)
+        
+        return processed_text
     
     def clean_for_display(self, script_text: str) -> str:
         """Clean script for human reading (remove all instruction tags)"""
@@ -796,3 +1061,24 @@ class ScriptCleaner:
         """Extract all instruction tags from script"""
         instruction_pattern = re.compile(r'\[([^\]]+)\]')
         return instruction_pattern.findall(script_text)
+    
+    def get_processing_stats(self, script_text: str, voice_name: str = "neural2") -> Dict[str, Any]:
+        """Get detailed processing statistics without actually processing"""
+        instruction_processor = InstructionProcessor()
+        validator = ScriptValidator()
+        
+        # Get instruction analysis
+        instruction_stats = instruction_processor.count_instructions(script_text)
+        
+        # Get validation results
+        validation_result = validator.validate_script(script_text)
+        validation_data = validation_result.data if validation_result.is_success else None
+        
+        return {
+            'word_count': len(script_text.split()),
+            'character_count': len(script_text),
+            'instruction_analysis': instruction_stats,
+            'validation_results': asdict(validation_data) if validation_data else None,
+            'estimated_processing_time_ms': len(script_text) * 0.1,  # Rough estimate
+            'cache_available': self.cache.get(script_text, voice_name) is not None
+        }
