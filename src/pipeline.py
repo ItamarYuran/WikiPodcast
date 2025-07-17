@@ -11,13 +11,21 @@ from typing import List, Dict, Optional
 from dotenv import load_dotenv
 
 try:
-    from content_fetcher import WikipediaContentFetcher, WikipediaArticle
-    from script_formatter import PodcastScriptFormatter, PodcastScript
+    # New modular imports
+    from content_sources.manager import ContentSourceManager
+    from script_generation.generators import ScriptGeneratorImpl
+    from core.models import PodcastScript, Article
+    from config_management.config_manager import get_config_manager
+    
+    # Keep these for now (will migrate later)
     from article_editor import ChapterEditor
-    from openai import OpenAI
     from content_pipeline import ContentProcessor
     from audio_pipeline import AudioGenerator
     from interactive_menus import InteractiveMenus
+    
+    # External dependencies
+    from openai import OpenAI
+    
 except ImportError as e:
     print(f"❌ Import Error: {e}")
     print("Make sure all required modules are available")
@@ -35,9 +43,18 @@ class PodcastPipeline:
             # Load environment variables
             load_dotenv('config/api_keys.env')
             
-            # Initialize core components
-            self.content_fetcher = WikipediaContentFetcher()
-            self.script_formatter = PodcastScriptFormatter()
+            # Initialize configuration management
+            self.config_manager = get_config_manager()
+            config = self.config_manager.get_config()
+            
+            # Initialize content sources (new modular approach)
+            self.content_source_manager = ContentSourceManager()
+            self.content_fetcher = self.content_source_manager.get_source('wikipedia')
+            print("✅ Content Fetcher initialized (modular)")
+            
+            # Initialize script generation (new modular approach)
+            self.script_formatter = ScriptGeneratorImpl(config)
+            print("✅ Script Generator initialized (modular)")
             
             # Initialize OpenAI components
             self.openai_api_key = os.getenv('OPENAI_API_KEY')
@@ -49,14 +66,10 @@ class PodcastPipeline:
                 self.audio_dir = Path("audio_output")
                 self.audio_dir.mkdir(exist_ok=True)
                 
-                print("✅ Content Fetcher initialized")
-                print("✅ Script Formatter initialized")
                 print("✅ Article Editor initialized")
                 print("✅ OpenAI TTS initialized")
                 print(f"📁 Audio output: {self.audio_dir.absolute()}")
             else:
-                print("✅ Content Fetcher initialized")
-                print("✅ Script Formatter initialized")
                 print("⚠️  Article Editor not available (missing OpenAI API key)")
                 print("⚠️  OpenAI TTS not available (missing API key)")
                 self.openai_client = None
@@ -80,15 +93,26 @@ class PodcastPipeline:
         print("=" * 30)
         
         # Content cache status
-        content_stats = self.content_fetcher.get_cache_stats()
-        print(f"📚 Cached Articles: {content_stats['total_articles']}")
-        print(f"📈 Trending Batches: {content_stats['trending_batches']}")
-        print(f"⭐ Featured Batches: {content_stats['featured_batches']}")
-        print(f"💾 Cache Size: {content_stats['total_size_mb']:.2f} MB")
+        try:
+            content_stats = self.content_fetcher.get_cache_stats()
+            print(f"📚 Cached Articles: {content_stats['total_articles']}")
+            print(f"📈 Trending Batches: {content_stats['trending_batches']}")
+            print(f"⭐ Featured Batches: {content_stats['featured_batches']}")
+            print(f"💾 Cache Size: {content_stats['total_size_mb']:.2f} MB")
+        except Exception as e:
+            print(f"⚠️  Could not get content cache stats: {e}")
         
         # Script cache status  
-        script_cache = self.script_formatter.list_cached_scripts()
-        print(f"📝 Generated Scripts: {len(script_cache)}")
+        try:
+            script_cache = self.script_formatter.list_cached_scripts()
+            print(f"📝 Generated Scripts: {len(script_cache)}")
+            
+            if script_cache:
+                print("\nRecent Scripts:")
+                for script in script_cache[:5]:
+                    print(f"  • {script['title']} ({script['style']}) - {script['duration']}")
+        except Exception as e:
+            print(f"⚠️  Could not get script cache: {e}")
         
         # Article editor status
         if hasattr(self, 'chapter_editor') and self.chapter_editor:
@@ -96,10 +120,10 @@ class PodcastPipeline:
         else:
             print("⚠️  Article Editor: Not available (add OpenAI API key)")
         
-        if script_cache:
-            print("\nRecent Scripts:")
-            for script in script_cache[:5]:
-                print(f"  • {script['title']} ({script['style']}) - {script['duration']}")
+        # Component type information
+        print(f"\n🔧 Component Types:")
+        print(f"📖 Content Fetcher: {type(self.content_fetcher).__name__}")
+        print(f"📝 Script Generator: {type(self.script_formatter).__name__}")
     
     # Delegate main functionality to specialized processors
     def fetch_and_generate_trending(self, count: int = 5, style: str = "conversational") -> List[PodcastScript]:

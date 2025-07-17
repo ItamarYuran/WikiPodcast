@@ -303,6 +303,91 @@ class ScriptGeneratorImpl(ScriptGenerator):
                 status=ProcessingStatus.FAILED,
                 error=error_msg
             )
+    def format_article_to_script(self, article, style='conversational', target_duration='medium', custom_instructions=None, **kwargs):
+        """
+        Format an article to a script - compatibility method for interactive menu
+        Delegates to the generate_script method to maintain interface compatibility
+        """
+        # Convert string target_duration to seconds if needed
+        if isinstance(target_duration, str):
+            duration_map = {
+                'short': 300,    # 5 minutes
+                'medium': 600,   # 10 minutes  
+                'long': 900,     # 15 minutes
+                'full': 1200     # 20 minutes
+            }
+            target_duration = duration_map.get(target_duration, 600)
+        
+        # Convert legacy WikipediaArticle to new Article format if needed
+        if hasattr(article, 'title') and not hasattr(article, 'id'):
+            # This is a legacy WikipediaArticle, convert it
+            from core.models import Article, ContentMetadata, ContentType
+            
+            # Create a safe filename-like id from the title
+            safe_title = "".join(c for c in article.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            article_id = safe_title.replace(' ', '_')[:50]
+            
+            # Create metadata with the REQUIRED source parameter
+            try:
+                # Try with common parameters that might exist
+                metadata = ContentMetadata(
+                    source="wikipedia",  # <-- REQUIRED parameter
+                    language="en",
+                    categories=getattr(article, 'categories', []),
+                    quality_score=getattr(article, 'quality_score', 0.0),
+                    page_views=getattr(article, 'page_views', 0),
+                    last_modified=getattr(article, 'last_modified', None),
+                    references=getattr(article, 'references', []),
+                    images=getattr(article, 'images', [])
+                )
+            except TypeError as e:
+                # If that fails, try with minimal required parameters
+                try:
+                    metadata = ContentMetadata(
+                        source="wikipedia",  # <-- REQUIRED parameter
+                        language="en",
+                        categories=getattr(article, 'categories', [])
+                    )
+                except TypeError as e2:
+                    # If that fails too, use only the required parameter
+                    metadata = ContentMetadata(
+                        source="wikipedia"  # <-- REQUIRED parameter
+                    )
+            
+            # Convert to new Article format
+            article = Article(
+                id=article_id,
+                title=article.title,
+                content=article.content,
+                summary=getattr(article, 'summary', ''),
+                url=getattr(article, 'url', ''),
+                content_type=ContentType.WIKIPEDIA_ARTICLE,  # Use the enum
+                metadata=metadata
+            )
+            
+            # Add word_count as a separate attribute if it doesn't exist
+            if not hasattr(article, 'word_count'):
+                article.word_count = getattr(article, 'word_count', len(article.content.split()))
+        
+        # Call the main generate_script method
+        result = self.generate_script(
+            article=article,
+            style=style,
+            custom_instructions=custom_instructions,
+            target_duration=target_duration
+        )
+        
+        # Return the script data if successful, otherwise raise the error
+        if result.is_success:
+            return result.data
+        else:
+            raise ScriptGenerationError(f"Script generation failed: {result.error}")
+
+    def list_cached_scripts(self):
+        """List cached scripts from the cache"""
+        if hasattr(self, 'cache') and self.cache and hasattr(self.cache, 'list_cached_scripts'):
+            return self.cache.list_cached_scripts()
+        return []
     
     def _build_generation_prompt(self,
                                article: Article,

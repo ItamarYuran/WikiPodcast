@@ -5,7 +5,7 @@ Common async patterns for batch processing, rate limiting, and error handling
 
 import asyncio
 import time
-from typing import List, TypeVar, Callable, Awaitable, Optional, Dict, Any, Union
+from typing import List, TypeVar, Callable, Awaitable, Optional, Dict, Any, Union, Generic
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 import functools
@@ -17,7 +17,7 @@ R = TypeVar('R')
 
 
 @dataclass
-class BatchResult:
+class BatchResult(Generic[T]):
     """Result of batch processing"""
     successful: List[T]
     failed: List[tuple]  # (item, exception)

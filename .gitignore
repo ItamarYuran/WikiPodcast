@@ -79,3 +79,15 @@ ENV/
 
 # Example and template files (keep these)
 !config/api_keys.env.example
+# API Keys and Credentials (NEVER commit these!)
+config/google-tts-credentials.json
+config/api_keys.env
+config/*.json
+*.env
+
+# Generated content (too large for git)
+raw_articles/*.json
+processed_scripts/*/*.json
+audio_output/*.mp3
+audio_output/*.json
+src/audio_output/

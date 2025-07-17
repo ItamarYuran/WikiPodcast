@@ -494,15 +494,35 @@ class WikipediaContentFetcher:
         return article.title if article else None
     
     def list_cached_articles(self) -> List[Dict[str, str]]:
-        """List cached articles"""
+        """List cached articles with metadata including word counts"""
         cached = []
         for file_path in self.cache_dir.glob('*.json'):
             if not file_path.name.startswith(('trending_', 'featured_')):
-                cached.append({
-                    'title': file_path.stem.replace('_', ' '),
-                    'filename': file_path.name,
-                    'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
-                })
+                try:
+                    # Load the file to get word_count and other metadata
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    
+                    # Extract word count from the JSON data
+                    word_count = data.get('word_count', 0)
+                    if word_count == 0 and data.get('content'):
+                        word_count = len(data.get('content', '').split())
+                    
+                    cached.append({
+                        'title': data.get('title', file_path.stem.replace('_', ' ')),
+                        'filename': file_path.name,
+                        'word_count': word_count,
+                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
+                    })
+                except Exception as e:
+                    print(f"⚠️  Error reading {file_path.name}: {e}")
+                    # Fallback for corrupted files
+                    cached.append({
+                        'title': file_path.stem.replace('_', ' '),
+                        'filename': file_path.name,
+                        'word_count': 0,
+                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
+                    })
         return cached
     
     def clear_cache(self, older_than_days: int = None):
