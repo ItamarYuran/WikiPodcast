@@ -96,7 +96,7 @@ class AudioGenerator:
             # Create a PodcastScript object using the new interface
             script = self._create_podcast_script_from_data(script_data)
             
-            if not script or not script.script_text:
+            if not script or not script.tts_ready_text:
                 print("❌ Script content is empty")
                 return None
             
@@ -127,88 +127,11 @@ class AudioGenerator:
             return None
     
     def _create_podcast_script_from_data(self, script_data: dict) -> Optional[PodcastScript]:
-        """Create a PodcastScript object from cached data using the new interface"""
+        """Create a PodcastScript object from cached data"""
         try:
-            # Convert style string to ScriptStyle enum
-            style_mapping = {
-                'conversational': ScriptStyle.CONVERSATIONAL,
-                'educational': ScriptStyle.EDUCATIONAL,
-                'narrative': ScriptStyle.NARRATIVE,
-                'interview': ScriptStyle.INTERVIEW,
-                'news': ScriptStyle.NEWS,
-                'documentary': ScriptStyle.DOCUMENTARY
-            }
-            
-            script_style = style_mapping.get(
-                script_data.get('style', 'conversational').lower(), 
-                ScriptStyle.CONVERSATIONAL
-            )
-            
-            # Create script segments if they don't exist
-            segments = script_data.get('segments', [])
-            if not segments:
-                # Create a single segment with the full script
-                segments = [
-                    ScriptSegment(
-                        id=str(uuid.uuid4()),
-                        content=script_data.get('script', ''),
-                        segment_type="main_content",
-                        estimated_duration=script_data.get('estimated_duration', 0),
-                        metadata={
-                            'word_count': script_data.get('word_count', 0),
-                            'tts_ready_content': script_data.get('script', '')
-                        }
-                    )
-                ]
-            else:
-                # Convert dict segments to ScriptSegment objects if needed
-                converted_segments = []
-                for seg in segments:
-                    if isinstance(seg, dict):
-                        converted_segments.append(
-                            ScriptSegment(
-                                id=seg.get('id', str(uuid.uuid4())),
-                                content=seg.get('content', ''),
-                                segment_type=seg.get('type', 'main_content'),
-                                estimated_duration=seg.get('estimated_duration', 0),
-                                metadata={
-                                    'word_count': seg.get('word_count', 0),
-                                    'tts_ready_content': seg.get('tts_ready_content', seg.get('content', ''))
-                                }
-                            )
-                        )
-                    else:
-                        converted_segments.append(seg)
-                segments = converted_segments
-            
-            # Handle timestamp conversion
-            created_at = datetime.now()
-            if 'generated_timestamp' in script_data:
-                try:
-                    created_at = datetime.fromisoformat(script_data['generated_timestamp'])
-                except:
-                    pass
-            
-            # Create the PodcastScript object with correct parameters
-            script = PodcastScript(
-                id=script_data.get('id', str(uuid.uuid4())),
-                title=script_data.get('title', 'Unknown'),
-                style=script_style,
-                source_article_id=script_data.get('source_article', 'unknown'),
-                segments=segments,
-                script_text=script_data.get('script', ''),
-                tts_ready_text=script_data.get('script', ''),  # Use same text for TTS
-                estimated_duration=script_data.get('estimated_duration', 0),
-                word_count=script_data.get('word_count', 0),
-                metadata=script_data.get('metadata', {}),
-                custom_instructions=script_data.get('custom_instructions', None),
-                created_at=created_at
-            )
-            
-            return script
-            
+            return PodcastScript.from_dict(script_data)
         except Exception as e:
-            print(f"❌ Error creating PodcastScript object: {e}")
+            print(f"❌ Error creating PodcastScript: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -266,7 +189,8 @@ class AudioGenerator:
             print(f"🎤 Using Google Cloud TTS voice: {voice}")
             
             # Process script to extract production notes
-            clean_script_text, production_timeline = self._process_script_with_production_notes(script.script_text)
+			# Line 269 - CORRECT:
+            clean_script_text, production_timeline = self._process_script_with_production_notes(script.tts_ready_text)
             print(f"📝 Converting {len(clean_script_text)} characters to speech...")
             
             # Strategy 1: Try with smaller chunks first if text is long (more reliable)

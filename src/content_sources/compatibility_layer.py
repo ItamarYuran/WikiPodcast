@@ -11,7 +11,8 @@ from dataclasses import dataclass
 import json
 
 from content_sources.manager import ContentSourceManager, create_content_source_manager
-from content_sources.interfaces import Article, SearchCriteria, ContentLength
+from content_sources.interfaces import SearchCriteria, ContentLength
+from core.models import Article
 
 @dataclass
 class WikipediaArticle:
@@ -392,55 +393,6 @@ class WikipediaContentFetcher:
         article = self.fetch_article(approximate_title, interactive=False)
         return article.title if article else None
     
-    def list_cached_articles(self) -> List[Dict[str, str]]:
-        """List all cached articles with metadata"""
-        try:
-            cached = []
-            
-            # Look for JSON files in the cache directory
-            for file_path in self.cache_dir.glob('*.json'):
-                # Skip system files
-                if file_path.name.startswith(('trending_', 'featured_', 'stats_')):
-                    continue
-                    
-                try:
-                    # Load the file to get metadata
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    
-                    # Extract metadata
-                    title = data.get('title', file_path.stem.replace('_', ' '))
-                    word_count = data.get('word_count', 0)
-                    
-                    # Calculate word count if missing
-                    if word_count == 0 and data.get('content'):
-                        word_count = len(data.get('content', '').split())
-                    
-                    cached.append({
-                        'title': title,
-                        'filename': file_path.name,
-                        'word_count': word_count,
-                        'quality_score': data.get('quality_score', 0.0),
-                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
-                    })
-                    
-                except Exception as e:
-                    # Fallback for corrupted files
-                    print(f"⚠️ Could not read {file_path.name}: {e}")
-                    cached.append({
-                        'title': file_path.stem.replace('_', ' '),
-                        'filename': file_path.name,
-                        'word_count': 0,
-                        'quality_score': 0.0,
-                        'cached_date': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
-                    })
-            
-            return sorted(cached, key=lambda x: x['cached_date'], reverse=True)
-            
-        except Exception as e:
-            print(f"❌ Error listing cached articles: {e}")
-            return []   
-        
 
     def load_cached_article(self, filename: str) -> Optional[WikipediaArticle]:
         """Load a cached article from JSON file"""

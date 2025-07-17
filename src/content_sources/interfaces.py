@@ -3,18 +3,9 @@ Simplified Content Source Interfaces
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
-from dataclasses import dataclass
+from typing import List, Optional, Dict, Any
+from core.models import Article  # Add this import
 
-@dataclass
-class Article:
-    """
-    Represents a fetched article with essential information.
-    """
-    title: str
-    content: str
-    url: str
-    source: str
 
 class ContentSource(ABC):
     """

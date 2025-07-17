@@ -211,9 +211,23 @@ class InteractiveMenus:
             print("=" * 40)
             
             # Robust access to article properties
+            # Replace lines 214-216 with this enhanced version:
+            # Extract metadata - first try article attributes, then calculate/default
             word_count = getattr(article, 'word_count', 0)
+            if word_count == 0 and hasattr(article, 'content'):
+                # Calculate word count from content
+                word_count = len(article.content.split()) if article.content else 0
+            
             quality_score = getattr(article, 'quality_score', 0.0)
             page_views = getattr(article, 'page_views', 0)
+            
+            # Also set these attributes on the article for consistency
+            if hasattr(article, 'content') and word_count > 0:
+                article.word_count = word_count
+            if not hasattr(article, 'quality_score'):
+                article.quality_score = quality_score
+            if not hasattr(article, 'page_views'):
+                article.page_views = page_views
             
             if word_count > 0:
                 print(f"📊 Word count: {word_count:,}")
@@ -222,7 +236,7 @@ class InteractiveMenus:
             
             print(f"📈 Quality score: {quality_score:.2f}")
             
-            if page_views > 0:
+            if isinstance(page_views, int) and page_views > 0:
                 print(f"👀 Recent views: {page_views:,}")
             else:
                 print(f"👀 Recent views: Not available")

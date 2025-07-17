@@ -4,7 +4,8 @@ Content Source Manager
 
 from typing import List, Optional
 
-from .interfaces import ContentSource, Article
+from .interfaces import ContentSource
+from core.models import Article
 from .wikipedia_source import WikipediaContentSource
 
 class ContentSourceManager:

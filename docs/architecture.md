@@ -1,271 +1,294 @@
-# Wikipedia Podcast Generation System - Architecture Documentation
+# Enhanced Wikipedia Podcast Generation Architecture
 
-## 🏗️ System Overview
+## 🎯 **Improved Target Architecture**
 
-The Wikipedia Podcast Generation System is a sophisticated pipeline that converts Wikipedia articles into professional podcast episodes. The system is currently undergoing a major architectural transition from a monolithic to a modular design.
-
-## 📊 Current System Statistics
-
-- **Total Files**: 12 Python files in `/src`
-- **Total Lines**: 5,548 lines of code
-- **Total Size**: 220.5 KB
-- **Classes**: 17 classes
-- **Functions**: 9 standalone functions
-- **Methods**: 129 methods across all classes
-- **Executable Scripts**: 5 entry points
-
-## 🔄 Architecture Evolution
-
-### Current State: Hybrid Architecture
-The system operates with both **legacy monolithic components** and **new modular components** running in parallel, with compatibility bridges connecting them.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    HYBRID ARCHITECTURE                         │
-│                                                                 │
-│  ┌─────────────────┐    ┌─────────────────┐                   │
-│  │  Legacy System  │ ←→ │  New Modular    │                   │
-│  │   (Working)     │    │   (Partial)     │                   │
-│  └─────────────────┘    └─────────────────┘                   │
-│          │                        │                           │
-│          └────────────────────────┼──────────────────────────┘
-│                                   │
-│                    ┌─────────────────┐
-│                    │ Compatibility   │
-│                    │    Bridges      │
-│                    └─────────────────┘
-```
-
-## 🎯 Core Components
-
-### 1. **Content Pipeline** (Working)
-- **Entry Point**: `main.py` (4.5 KB)
-- **Orchestrator**: `pipeline.py` (8.3 KB)
-- **Content Fetching**: `content_fetcher.py` (21.7 KB)
-- **Content Processing**: `content_pipeline.py` (17.3 KB)
-
-### 2. **Script Generation** (Hybrid)
-- **Main Engine**: `script_formatter.py` (26.5 KB) - Compatibility bridge
-- **Backend**: `core/script_generation/` - New modular system
-- **Legacy Support**: Maintains old interface while using new backend
-
-### 3. **Audio Generation** (Recently Modernized)
-- **Main Engine**: `audio_pipeline.py` (37.8 KB) - Now uses new interface
-- **TTS Processing**: `tts_processor.py` (10.2 KB)
-- **Post-Production**: `podcast_post_production.py` (21.7 KB)
-
-### 4. **User Interface** (Legacy)
-- **Interactive System**: `interactive_menus.py` (36.7 KB)
-- **Command Line**: `main.py` with argument parsing
-- **Diagnostic Tools**: `api_diagnostic.py` (1.1 KB)
-
-### 5. **Utilities** (Legacy)
-- **Article Editing**: `article_editor.py` (8.0 KB)
-- **Standalone Creator**: `create_podcast.py` (26.7 KB)
-
-## 🏛️ New Modular Architecture (Target)
-
-### Core Modules (Implemented)
+### **Core Foundation (Enhanced)**
 ```
 src/
 ├── core/                           # Foundation layer
-│   ├── models.py                   # Data models (14KB)
-│   ├── interfaces.py               # Abstract interfaces (8KB)
-│   └── exceptions.py               # Error handling (7KB)
+│   ├── models.py                   # Data models (14KB) ✅
+│   ├── interfaces.py               # Abstract interfaces (8KB) ✅
+│   ├── exceptions.py               # Error handling (7KB) ✅
+│   ├── events.py                   # Event system (NEW)
+│   └── metrics.py                  # Performance tracking (NEW)
 │
 ├── content_sources/                # Content fetching
-│   ├── interfaces.py               # Content source contracts
-│   ├── manager.py                  # Source orchestration
-│   └── wikipedia_source.py         # Wikipedia implementation
+│   ├── interfaces.py               # Content source contracts ✅
+│   ├── manager.py                  # Source orchestration ✅
+│   ├── wikipedia_source.py         # Wikipedia implementation ✅
+│   ├── plugins/                    # Plugin system (NEW)
+│   │   ├── __init__.py
+│   │   ├── news_source.py          # News articles
+│   │   ├── arxiv_source.py         # Research papers
+│   │   └── custom_source.py        # Custom text input
+│   └── cache/                      # Advanced caching (NEW)
+│       ├── redis_cache.py          # Redis backend
+│       └── file_cache.py           # File-based cache
 │
 ├── script_generation/              # Script creation
-│   ├── generators.py               # Core generation (29KB)
-│   ├── styles.py                   # Style management (15KB)
-│   └── processors.py               # TTS processing stubs
+│   ├── generators.py               # Core generation (29KB) ✅
+│   ├── styles.py                   # Style management (15KB) ✅
+│   ├── processors.py               # TTS processing (ENHANCE)
+│   ├── validators.py               # Script validation (ENHANCE)
+│   ├── cache.py                    # Script caching (ENHANCE)
+│   └── templates/                  # Style templates (NEW)
+│       ├── conversational.yaml
+│       ├── documentary.yaml
+│       └── educational.yaml
+│
+├── audio_pipeline/                 # Audio generation (NEW STRUCTURE)
+│   ├── interfaces.py               # Audio interfaces
+│   ├── tts_manager.py              # TTS orchestration
+│   ├── providers/                  # TTS providers
+│   │   ├── google_tts.py           # Google Cloud TTS
+│   │   ├── openai_tts.py           # OpenAI TTS
+│   │   └── elevenlabs_tts.py       # ElevenLabs TTS
+│   ├── processors/                 # Audio processing
+│   │   ├── normalizer.py           # Audio normalization
+│   │   ├── enhancer.py             # Audio enhancement
+│   │   └── effects.py              # Audio effects
+│   └── formats/                    # Output formats
+│       ├── mp3_encoder.py
+│       ├── wav_encoder.py
+│       └── podcast_rss.py          # RSS feed generation
+│
+├── content_intelligence/           # Smart content processing (NEW)
+│   ├── summarizer.py               # Content summarization
+│   ├── chapter_detector.py         # Auto-chapter detection
+│   ├── quality_scorer.py           # Content quality scoring
+│   └── adapters/                   # Content adaptation
+│       ├── length_adapter.py       # Dynamic length adjustment
+│       └── style_adapter.py        # Style-specific adaptation
+│
+├── workflow/                       # Workflow orchestration (NEW)
+│   ├── pipeline.py                 # Enhanced pipeline
+│   ├── jobs.py                     # Job management
+│   ├── scheduler.py                # Task scheduling
+│   └── monitoring.py               # Performance monitoring
+│
+├── config/                         # Configuration management
+│   ├── settings.py                 # Application settings
+│   ├── environments/               # Environment configs
+│   │   ├── development.yaml
+│   │   ├── production.yaml
+│   │   └── testing.yaml
+│   └── schemas/                    # Config validation
+│       └── config_schema.yaml
 │
 └── utils/                          # Utility functions
-    ├── http_client.py              # HTTP utilities
-    ├── filesystem.py               # File operations
-    └── async_utils.py              # Async utilities
+    ├── http_client.py              # HTTP utilities ✅
+    ├── filesystem.py               # File operations ✅
+    ├── async_utils.py              # Async utilities ✅
+    ├── text_processing.py          # Text utilities (NEW)
+    └── formatters.py               # Output formatters (NEW)
 ```
 
-## 🔗 Data Flow Architecture
+## 🚀 **Enhanced Data Flow Architecture**
 
-### Current Pipeline Flow
+### **Event-Driven Pipeline**
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Wikipedia     │ ── │   Content       │ ── │   Script        │
-│   Fetching      │    │   Processing    │    │   Generation    │
+│   Content       │ ── │   Content       │ ── │   Script        │
+│   Fetching      │    │   Intelligence  │    │   Generation    │
 │                 │    │                 │    │                 │
-│ content_fetcher │    │content_pipeline │    │script_formatter │
-│     (21.7KB)    │    │    (17.3KB)     │    │    (26.5KB)     │
+│ • Multi-source  │    │ • Summarization │    │ • Style engine  │
+│ • Plugin system │    │ • Quality score │    │ • Template sys  │
+│ • Smart caching │    │ • Auto-chapters │    │ • Validation    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                                         │
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Post-Prod     │ ── │   Audio         │ ── │   TTS           │
-│   Enhancement   │    │   Generation    │    │   Processing    │
+│   Output        │ ── │   Audio         │ ── │   TTS           │
+│   Generation    │    │   Processing    │    │   Providers     │
 │                 │    │                 │    │                 │
-│podcast_post_prod│    │audio_pipeline   │    │ tts_processor   │
-│    (21.7KB)     │    │    (37.8KB)     │    │    (10.2KB)     │
+│ • Multi-format  │    │ • Enhancement   │    │ • Multi-TTS     │
+│ • RSS feeds     │    │ • Normalization │    │ • Voice cloning │
+│ • Thumbnails    │    │ • Effects       │    │ • SSML optimize │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🎛️ Interface Patterns
+## 🔌 **Plugin Architecture**
 
-### Legacy Interface (Current)
+### **Content Source Plugins**
 ```python
-# Old style - direct class instantiation
-content_fetcher = WikipediaContentFetcher()
-script_formatter = PodcastScriptFormatter()
+# Example: ArXiv research papers
+class ArxivContentSource(ContentSource):
+    def fetch_article(self, paper_id: str) -> Article:
+        # Fetch and parse research paper
+        pass
+    
+    def search_articles(self, query: str) -> List[Article]:
+        # Search academic papers
+        pass
 ```
 
-### New Interface (Target)
+### **TTS Provider Plugins**
 ```python
-# New style - dependency injection with interfaces
-content_manager = ContentSourceManager()
-script_generator = ScriptGeneratorImpl(config)
+# Example: ElevenLabs integration
+class ElevenLabsTTSProvider(TTSProvider):
+    def generate_audio(self, script: PodcastScript) -> AudioFile:
+        # Generate high-quality voice synthesis
+        pass
 ```
 
-## 📦 Component Responsibilities
+## 🧠 **Content Intelligence Layer**
 
-### **Large Components** (>20KB)
-1. **`audio_pipeline.py`** (37.8KB) - Audio generation with Google Cloud TTS
-2. **`interactive_menus.py`** (36.7KB) - User interface system
-3. **`create_podcast.py`** (26.7KB) - Standalone podcast creator
-4. **`script_formatter.py`** (26.5KB) - Script generation bridge
-5. **`podcast_post_production.py`** (21.7KB) - Audio enhancement
-6. **`content_fetcher.py`** (21.7KB) - Wikipedia content fetching
-
-### **Medium Components** (10-20KB)
-1. **`content_pipeline.py`** (17.3KB) - Content processing orchestration
-2. **`tts_processor.py`** (10.2KB) - SSML and TTS optimization
-
-### **Small Components** (<10KB)
-1. **`pipeline.py`** (8.3KB) - Main system orchestrator
-2. **`article_editor.py`** (8.0KB) - Chapter-based editing
-3. **`main.py`** (4.5KB) - CLI entry point
-4. **`api_diagnostic.py`** (1.1KB) - Diagnostic utilities
-
-## 🔧 Configuration Management
-
-### Current Configuration
-- **API Keys**: `config/api_keys.env`
-- **Hardcoded Settings**: Scattered throughout legacy components
-- **Cache Directories**: `../raw_articles/`, `../processed_scripts/`
-
-### Target Configuration
-- **Centralized**: `config_management/config_manager.py`
-- **Environment-based**: Different configs for dev/prod
-- **Type-safe**: Using dataclasses and validation
-
-## 🚀 Execution Models
-
-### **Interactive Mode** (Primary)
-```bash
-python main.py  # Launches interactive_menus.py
+### **Smart Content Processing**
+```python
+class ContentIntelligence:
+    def analyze_content(self, article: Article) -> ContentAnalysis:
+        """Analyze content for optimal processing"""
+        return ContentAnalysis(
+            complexity_score=self.calculate_complexity(article),
+            optimal_style=self.suggest_style(article),
+            suggested_length=self.suggest_length(article),
+            chapter_breaks=self.detect_chapters(article)
+        )
+    
+    def adapt_for_podcast(self, article: Article, target_duration: int) -> Article:
+        """Adapt content for podcast format"""
+        pass
 ```
 
-### **Command Line Mode**
-```bash
-python main.py --trending 5
-python main.py --topic "AI" --style conversational
+### **Quality Scoring System**
+```python
+class QualityScorer:
+    def score_content(self, article: Article) -> QualityScore:
+        """Score content quality across multiple dimensions"""
+        return QualityScore(
+            readability=self.calculate_readability(article),
+            informativeness=self.calculate_informativeness(article),
+            engagement=self.calculate_engagement(article),
+            podcast_suitability=self.calculate_podcast_fit(article)
+        )
 ```
 
-### **Standalone Scripts**
-```bash
-python create_podcast.py "Machine Learning" conversational
-python article_editor.py  # Direct article editing
-python podcast_post_production.py  # Audio enhancement
+## 🔄 **Enhanced Workflow System**
+
+### **Job-Based Processing**
+```python
+class PodcastGenerationJob:
+    def execute(self):
+        """Execute job with proper error handling and monitoring"""
+        with self.monitor_performance():
+            try:
+                # Content fetching
+                content = self.fetch_content()
+                
+                # Content intelligence
+                analysis = self.analyze_content(content)
+                
+                # Script generation
+                script = self.generate_script(content, analysis)
+                
+                # Audio generation
+                audio = self.generate_audio(script)
+                
+                # Post-processing
+                result = self.post_process(audio)
+                
+                return result
+            except Exception as e:
+                self.handle_error(e)
+                raise
 ```
 
-## 🔄 Migration Strategy
+### **Event System**
+```python
+class PipelineEvents:
+    CONTENT_FETCHED = "content.fetched"
+    SCRIPT_GENERATED = "script.generated"
+    AUDIO_GENERATED = "audio.generated"
+    JOB_COMPLETED = "job.completed"
+    ERROR_OCCURRED = "error.occurred"
 
-### **Completed Migrations**
-- ✅ **`audio_pipeline.py`** - Now uses `core.models.PodcastScript`
-- ✅ **Core foundation** - `core/models.py`, `core/interfaces.py`
-- ✅ **Script generation backend** - `script_generation/generators.py`
-
-### **In Progress**
-- 🔄 **`script_formatter.py`** - Compatibility bridge active
-- 🔄 **Configuration management** - Partially centralized
-
-### **Pending Migrations**
-- ❌ **`interactive_menus.py`** - Still uses legacy imports
-- ❌ **`content_fetcher.py`** - Large monolithic component
-- ❌ **`pipeline.py`** - Orchestration layer needs updating
-
-## 🛠️ Development Patterns
-
-### **Error Handling**
-- **Legacy**: Basic try/catch with print statements
-- **New**: Structured exceptions in `core/exceptions.py`
-
-### **Data Models**
-- **Legacy**: Simple dataclasses or dictionaries
-- **New**: Rich domain models with validation
-
-### **Dependency Management**
-- **Legacy**: Direct imports and instantiation
-- **New**: Dependency injection with interfaces
-
-## 🎯 Quality Metrics
-
-### **Code Organization**
-- **Cohesion**: High - Components have clear responsibilities
-- **Coupling**: Medium - Some tight coupling in legacy components
-- **Testability**: Low - Limited test coverage currently
-
-### **Performance Characteristics**
-- **Startup Time**: ~2-3 seconds (loading OpenAI, Google Cloud clients)
-- **Memory Usage**: ~50-100MB for typical operations
-- **I/O Patterns**: Heavy file caching, API rate limiting
-
-## 🔮 Future Architecture Vision
-
-### **Target State**: Fully Modular
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    MODULAR ARCHITECTURE                        │
-│                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│  │   Content   │  │   Script    │  │   Audio     │            │
-│  │   Sources   │  │ Generation  │  │ Pipeline    │            │
-│  └─────────────┘  └─────────────┘  └─────────────┘            │
-│         │                 │                 │                 │
-│         └─────────────────┼─────────────────┘                 │
-│                           │                                   │
-│                  ┌─────────────┐                              │
-│                  │    Core     │                              │
-│                  │ Foundation  │                              │
-│                  └─────────────┘                              │
-└─────────────────────────────────────────────────────────────────┘
+# Event handlers for monitoring, logging, notifications
+@event_handler(PipelineEvents.SCRIPT_GENERATED)
+def on_script_generated(event: ScriptGeneratedEvent):
+    # Log metrics, update UI, send notifications
+    pass
 ```
 
-### **Benefits of Full Migration**
-- **Maintainability**: Clear separation of concerns
-- **Testability**: Mockable interfaces
-- **Extensibility**: Plugin architecture for new sources
-- **Reliability**: Structured error handling
-- **Performance**: Optimized data flow
+## 📊 **Performance Monitoring**
 
-## 📝 Development Guidelines
+### **Metrics Collection**
+```python
+class PipelineMetrics:
+    def track_performance(self, job: PodcastGenerationJob):
+        """Track performance across all pipeline stages"""
+        metrics = {
+            'content_fetch_time': job.content_fetch_duration,
+            'script_generation_time': job.script_generation_duration,
+            'audio_generation_time': job.audio_generation_duration,
+            'total_processing_time': job.total_duration,
+            'content_quality_score': job.content_quality,
+            'script_quality_score': job.script_quality,
+            'audio_quality_score': job.audio_quality
+        }
+        self.metrics_store.record(metrics)
+```
 
-### **Adding New Features**
-1. **Check existing interfaces** in `core/interfaces.py`
-2. **Use dependency injection** rather than direct instantiation
-3. **Add proper error handling** using `core/exceptions.py`
-4. **Follow the modular patterns** in `script_generation/`
+## 🔧 **Configuration Management**
 
-### **Modifying Existing Code**
-1. **Prefer migrating to new interface** over extending legacy
-2. **Use compatibility bridges** for gradual migration
-3. **Update documentation** when changing interfaces
-4. **Test both legacy and new paths** during transition
+### **Environment-Based Configuration**
+```yaml
+# config/environments/production.yaml
+content_sources:
+  wikipedia:
+    rate_limit: 100
+    cache_ttl: 3600
+  arxiv:
+    rate_limit: 50
+    cache_ttl: 7200
 
-### **Integration Points**
-- **External APIs**: OpenAI, Google Cloud TTS, Wikipedia
-- **File System**: Caching in `raw_articles/`, `processed_scripts/`
-- **Configuration**: Environment variables and config files
-- **User Interface**: CLI arguments and interactive menus
+script_generation:
+  default_style: conversational
+  quality_threshold: 0.8
+  max_tokens: 4000
 
-This architecture supports both immediate productivity (legacy system works) and long-term maintainability (new system is cleaner and more extensible).
+audio_pipeline:
+  default_provider: google
+  quality: high
+  format: mp3
+  bitrate: 192
+```
+
+## 🎯 **Migration Priority**
+
+### **Phase 1: Core Infrastructure (Week 1)**
+1. **Event System** - Add event-driven architecture
+2. **Enhanced TTS Processors** - Implement proper SSML handling
+3. **Content Intelligence** - Basic quality scoring and adaptation
+
+### **Phase 2: Plugin System (Week 2)**
+1. **TTS Providers** - Multi-provider support
+2. **Content Sources** - Plugin architecture
+3. **Enhanced Caching** - Redis integration
+
+### **Phase 3: Advanced Features (Week 3)**
+1. **Workflow System** - Job-based processing
+2. **Performance Monitoring** - Metrics and alerting
+3. **Output Formats** - RSS, thumbnails, multi-format
+
+## 💡 **Key Improvements Over Current Architecture**
+
+### **1. Scalability**
+- **Plugin system** for easy extensibility
+- **Event-driven** architecture for loose coupling
+- **Job-based** processing for better resource management
+
+### **2. Intelligence**
+- **Content analysis** for optimal processing
+- **Quality scoring** for content selection
+- **Adaptive processing** based on content characteristics
+
+### **3. Robustness**
+- **Comprehensive error handling** with structured exceptions
+- **Performance monitoring** for proactive issue detection
+- **Fallback systems** for reliability
+
+### **4. User Experience**
+- **Real-time progress** updates through events
+- **Quality feedback** to help users choose better content
+- **Multiple output formats** for different use cases
+
+This enhanced architecture maintains backward compatibility while providing a clear path to a more sophisticated, scalable, and intelligent podcast generation system.
